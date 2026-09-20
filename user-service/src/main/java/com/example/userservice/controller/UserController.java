@@ -4,7 +4,7 @@ import com.example.userservice.entity.User;
 import com.example.userservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.http.ResponseEntity;
 import java.util.List;
 
 @RestController
@@ -25,7 +25,8 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public User getUser(@PathVariable Long id) {
-        return repository.findById(id).orElse(null);
-    }
-}
+    public ResponseEntity<User> getUser(@PathVariable Long id) {
+        return repository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }}
