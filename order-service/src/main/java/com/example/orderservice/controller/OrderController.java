@@ -10,6 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Value;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import java.util.List;
 
@@ -25,6 +28,11 @@ public class OrderController {
     public List<OrderEntity> getAllOrders() {
         return repository.findAll();
     }
+    @GetMapping("/instance")
+    public String getInstance() throws UnknownHostException {
+        return "Order Service instance: " +
+                InetAddress.getLocalHost().getHostName();
+    }
 
     @PostMapping
     public ResponseEntity<String> placeOrder(
@@ -36,7 +44,7 @@ public class OrderController {
 
         try {
             user = restTemplate.getForObject(
-                    "http://user-service:8081/users/" + userId,
+                    "http://user-service/users/" + userId,
                     User.class);
         } catch (HttpClientErrorException.NotFound e) {
             return ResponseEntity
@@ -46,7 +54,7 @@ public class OrderController {
 
         try {
             product = restTemplate.getForObject(
-                    "http://product-service:8082/products/" + productId,
+                    "http://product-service/products/" + productId,
                     Product.class);
         } catch (HttpClientErrorException.NotFound e) {
             return ResponseEntity
