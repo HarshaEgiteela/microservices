@@ -1,8 +1,9 @@
 package com.example.productservice.controller;
 
 import com.example.productservice.entity.Product;
-import com.example.productservice.repository.ProductRepository;
+import com.example.productservice.service.ProductService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,20 +13,52 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProductController {
 
-    private final ProductRepository repository;
+    private final ProductService productService;
 
     @GetMapping
-    public List<Product> getAll() {
-        return repository.findAll();
-    }
-
-    @PostMapping
-    public Product save(@RequestBody Product product) {
-        return repository.save(product);
+    public List<Product> getAllProducts() {
+        return productService.getAllProducts();
     }
 
     @GetMapping("/{id}")
-    public Product getById(@PathVariable Long id) {
-        return repository.findById(id).orElse(null);
+    public ResponseEntity<Product> getProduct(@PathVariable Long id) {
+        return ResponseEntity.ok(productService.getProductById(id));
+    }
+
+    @PostMapping
+    public ResponseEntity<Product> createProduct(
+            @RequestBody Product product) {
+
+        return ResponseEntity.ok(
+                productService.createProduct(product)
+        );
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Product> updateProduct(
+            @PathVariable Long id,
+            @RequestBody Product product) {
+
+        return ResponseEntity.ok(
+                productService.updateProduct(id, product)
+        );
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(
+            @PathVariable Long id) {
+
+        productService.deleteProduct(id);
+
+        return ResponseEntity.noContent().build();
+    }
+    @PutMapping("/{id}/reduce-stock")
+    public ResponseEntity<Product> reduceStock(
+            @PathVariable Long id,
+            @RequestParam int quantity) {
+
+        return ResponseEntity.ok(
+                productService.reduceQuantity(id, quantity)
+        );
     }
 }

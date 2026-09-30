@@ -1,19 +1,14 @@
 package com.example.orderservice.controller;
 
-import com.example.orderservice.dto.Product;
-import com.example.orderservice.dto.User;
 import com.example.orderservice.entity.OrderEntity;
 import com.example.orderservice.repository.OrderRepository;
+import com.example.orderservice.service.OrderService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.beans.factory.annotation.Value;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-
 import java.util.List;
 
 @RestController
@@ -22,55 +17,31 @@ import java.util.List;
 public class OrderController {
 
     private final OrderRepository repository;
-    private final RestTemplate restTemplate;
+    private final OrderService orderService;
 
     @GetMapping
     public List<OrderEntity> getAllOrders() {
         return repository.findAll();
     }
+
     @GetMapping("/instance")
     public String getInstance() throws UnknownHostException {
-        return "Order Service instance: " +
-                InetAddress.getLocalHost().getHostName();
+        return "Order Service instance: "
+                + InetAddress.getLocalHost().getHostName();
     }
 
     @PostMapping
     public ResponseEntity<String> placeOrder(
             @RequestParam Long userId,
-            @RequestParam Long productId) {
-
-        User user;
-        Product product;
-
-        try {
-            user = restTemplate.getForObject(
-                    "http://user-service/users/" + userId,
-                    User.class);
-        } catch (HttpClientErrorException.NotFound e) {
-            return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body("User not found: " + userId);
-        }
-
-        try {
-            product = restTemplate.getForObject(
-                    "http://product-service/products/" + productId,
-                    Product.class);
-        } catch (HttpClientErrorException.NotFound e) {
-            return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body("Product not found: " + productId);
-        }
-
-        OrderEntity order =
-                new OrderEntity(null, userId, productId);
-
-        repository.save(order);
+            @RequestParam Long productId,
+            @RequestParam int quantity) {
 
         return ResponseEntity.ok(
-                "Order placed for "
-                        + user.getName()
-                        + " Product: "
-                        + product.getName());
+                orderService.placeOrder(
+                        userId,
+                        productId,
+                        quantity
+                )
+        );
     }
 }

@@ -1,11 +1,15 @@
 package com.example.orderservice.dto;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 public class Product {
 
     private Long id;
     private String name;
-    private Double price;
+    private double price;
+    private int quantity;
+    private String description;
 }

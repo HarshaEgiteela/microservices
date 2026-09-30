@@ -1,0 +1,13 @@
+<h2>Users</h2>
+
+@if (users.length === 0) {
+<p>No users found.</p>
+} @else {
+@for (user of users; track user.id) {
+<div class="user-card">
+  <p><strong>ID:</strong> {{ user.id }}</p>
+  <p><strong>Name:</strong> {{ user.name }}</p>
+  <p><strong>Email:</strong> {{ user.email }}</p>
+</div>
+}
+}

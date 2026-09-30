@@ -2,10 +2,14 @@ package com.example.userservice.controller;
 
 import com.example.userservice.entity.User;
 import com.example.userservice.repository.UserRepository;
+import com.example.userservice.service.AuthService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import com.example.userservice.dto.RegisterRequest;
 import java.util.List;
+import com.example.userservice.dto.AuthResponse;
+import com.example.userservice.dto.LoginRequest;
 
 @RestController
 @RequestMapping("/users")
@@ -13,6 +17,7 @@ import java.util.List;
 public class UserController {
 
     private final UserRepository repository;
+    private final AuthService authService;
 
     @GetMapping
     public List<User> getAllUsers() {
@@ -20,8 +25,15 @@ public class UserController {
     }
 
     @PostMapping
-    public User saveUser(@RequestBody User user) {
-        return repository.save(user);
+    public ResponseEntity<User> register(@RequestBody RegisterRequest request) {
+
+        User user = authService.register(
+                request.getName(),
+                request.getEmail(),
+                request.getPassword()
+        );
+
+        return ResponseEntity.ok(user);
     }
 
     @GetMapping("/{id}")
@@ -29,4 +41,17 @@ public class UserController {
         return repository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
-    }}
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(
+            @RequestBody LoginRequest request) {
+
+        AuthResponse response = authService.login(
+                request.getEmail(),
+                request.getPassword()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+}

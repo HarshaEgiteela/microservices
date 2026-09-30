@@ -1,0 +1,41 @@
+<h2>Register User</h2>
+
+<form (ngSubmit)="register()">
+
+  <input
+    type="text"
+    name="name"
+    [(ngModel)]="user.name"
+    placeholder="Name"
+    required
+  />
+
+  <br><br>
+
+  <input
+    type="email"
+    name="email"
+    [(ngModel)]="user.email"
+    placeholder="Email"
+    required
+  />
+
+  <br><br>
+
+  <input
+    type="password"
+    name="password"
+    [(ngModel)]="user.password"
+    placeholder="Password"
+    required
+  />
+
+  <br><br>
+
+  <button type="submit" [disabled]="isRegistering">
+    {{ isRegistering ? 'Registering...' : 'Register' }}
+  </button>
+
+</form>
+
+<p>{{ message }}</p>
