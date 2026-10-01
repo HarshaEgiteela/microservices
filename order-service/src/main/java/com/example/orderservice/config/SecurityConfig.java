@@ -1,11 +1,9 @@
-package com.example.userservice.config;
+package com.example.orderservice.config;
 
-import com.example.userservice.security.JwtAuthFilter;
+import com.example.orderservice.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -25,14 +23,11 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // Public
-                        .requestMatchers(HttpMethod.POST, "/users").permitAll()
-                        .requestMatchers("/users/login").permitAll()
-                        .requestMatchers("/actuator/health").permitAll()
-                        // Only ADMIN can get all users
-                        .requestMatchers(HttpMethod.GET, "/users").hasRole("ADMIN")
+                        // Customers and admins can place/view orders
+                        .requestMatchers("/actuator/health","/error").permitAll()
+                        .requestMatchers("/orders/**")
+                        .hasAnyRole("CUSTOMER", "ADMIN")
 
-                        // Everything else
                         .anyRequest().authenticated()
                 )
 

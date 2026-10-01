@@ -1,27 +1,5 @@
 services:
 
-  mysql:
-    image: mysql:8.0
-    container_name: mysql-container
-    restart: unless-stopped
-
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-
-    ports:
-      - "3307:3306"
-
-    volumes:
-      - mysql-data:/var/lib/mysql
-      - ./mysql-init/init.sql:/docker-entrypoint-initdb.d/init.sql
-
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-
   # -------------------------
   # Eureka Server
   # -------------------------
@@ -60,15 +38,13 @@ services:
       - "8081:8081"
 
     depends_on:
-      mysql:
-        condition: service_healthy
       eureka-server:
         condition: service_healthy
 
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/userdb
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      SPRING_DATASOURCE_URL: jdbc:mysql://microservices-db.c9igqemwszh9.ap-southeast-2.rds.amazonaws.com:3306/userdb
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: ${RDS_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
 
@@ -92,20 +68,20 @@ services:
     build: ./product-service
     container_name: product-service
     restart: unless-stopped
+
     ports:
       - "8082:8082"
 
     depends_on:
-      mysql:
-        condition: service_healthy
       eureka-server:
         condition: service_healthy
 
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/productdb
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      SPRING_DATASOURCE_URL: jdbc:mysql://microservices-db.c9igqemwszh9.ap-southeast-2.rds.amazonaws.com:3306/productdb
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: ${RDS_PASSWORD}
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET}
 
     deploy:
       resources:
@@ -125,25 +101,25 @@ services:
   # -------------------------
   order-service:
     build: ./order-service
+    container_name: order-service
     restart: unless-stopped
+
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://microservices-db.c9igqemwszh9.ap-southeast-2.rds.amazonaws.com:3306/orderdb
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: ${RDS_PASSWORD}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET}
 
     deploy:
       resources:
         limits:
           memory: 512M
           cpus: "0.5"
-
-    depends_on:
-      mysql:
-        condition: service_healthy
-      eureka-server:
-        condition: service_healthy
-
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/orderdb
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
 
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8083/actuator/health"]
@@ -159,6 +135,7 @@ services:
     build: ./api-gateway
     container_name: api-gateway
     restart: unless-stopped
+
     ports:
       - "8080:8080"
 
@@ -180,7 +157,3 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-
-
-volumes:
-  mysql-data:

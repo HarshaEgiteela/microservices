@@ -1,10 +1,13 @@
-package com.example.userservice.config;
+package com.example.productservice.config;
 
-import com.example.userservice.security.JwtAuthFilter;
+import com.example.productservice.security.JwtAuthFilter;
+
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpMethod;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import org.springframework.http.HttpMethod;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -22,17 +25,27 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
-
                 .authorizeHttpRequests(auth -> auth
 
-                        // Public
-                        .requestMatchers(HttpMethod.POST, "/users").permitAll()
-                        .requestMatchers("/users/login").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
-                        // Only ADMIN can get all users
-                        .requestMatchers(HttpMethod.GET, "/users").hasRole("ADMIN")
 
-                        // Everything else
+                        .requestMatchers(HttpMethod.GET, "/products/**")
+                        .hasAnyRole("CUSTOMER", "ADMIN")
+
+                        // Order service is allowed to reduce stock
+                        .requestMatchers(HttpMethod.PUT, "/products/*/reduce-stock")
+                        .permitAll()
+
+                        // Only admin can modify products
+                        .requestMatchers(HttpMethod.POST, "/products")
+                        .hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.PUT, "/products/**")
+                        .hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.DELETE, "/products/**")
+                        .hasRole("ADMIN")
+
                         .anyRequest().authenticated()
                 )
 

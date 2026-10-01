@@ -4,8 +4,13 @@ import com.example.orderservice.dto.Product;
 import com.example.orderservice.dto.User;
 import com.example.orderservice.entity.OrderEntity;
 import com.example.orderservice.repository.OrderRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -17,6 +22,21 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final RestTemplate restTemplate;
+    private final HttpServletRequest httpRequest;
+
+    private HttpEntity<Void> createAuthenticatedRequest() {
+
+        String authorization =
+                httpRequest.getHeader("Authorization");
+
+        HttpHeaders headers = new HttpHeaders();
+
+        if (authorization != null) {
+            headers.set("Authorization", authorization);
+        }
+
+        return new HttpEntity<>(headers);
+    }
 
     public String placeOrder(
             Long userId,
@@ -35,10 +55,16 @@ public class OrderService {
         User user;
 
         try {
-            user = restTemplate.getForObject(
-                    "http://user-service/users/" + userId,
-                    User.class
-            );
+
+            ResponseEntity<User> userResponse =
+                    restTemplate.exchange(
+                            "http://user-service/users/" + userId,
+                            HttpMethod.GET,
+                            createAuthenticatedRequest(),
+                            User.class
+                    );
+
+            user = userResponse.getBody();
 
         } catch (HttpClientErrorException.NotFound e) {
 
@@ -52,10 +78,16 @@ public class OrderService {
         Product product;
 
         try {
-            product = restTemplate.getForObject(
-                    "http://product-service/products/" + productId,
-                    Product.class
-            );
+
+            ResponseEntity<Product> productResponse =
+                    restTemplate.exchange(
+                            "http://product-service/products/" + productId,
+                            HttpMethod.GET,
+                            createAuthenticatedRequest(),
+                            Product.class
+                    );
+
+            product = productResponse.getBody();
 
         } catch (HttpClientErrorException.NotFound e) {
 
@@ -78,12 +110,14 @@ public class OrderService {
         // Reduce product quantity
         try {
 
-            restTemplate.put(
+            restTemplate.exchange(
                     "http://product-service/products/"
                             + productId
                             + "/reduce-stock?quantity="
                             + quantity,
-                    null
+                    HttpMethod.PUT,
+                    createAuthenticatedRequest(),
+                    Void.class
             );
 
         } catch (HttpClientErrorException e) {
