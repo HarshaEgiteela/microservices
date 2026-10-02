@@ -3,6 +3,7 @@ package com.example.orderservice.service;
 import com.example.orderservice.dto.Product;
 import com.example.orderservice.dto.User;
 import com.example.orderservice.entity.OrderEntity;
+import com.example.orderservice.entity.OrderStatus;
 import com.example.orderservice.repository.OrderRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +44,6 @@ public class OrderService {
             Long productId,
             int quantity) {
 
-        // Validate quantity
         if (quantity <= 0) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -133,7 +133,8 @@ public class OrderService {
                 null,
                 userId,
                 productId,
-                quantity
+                quantity,
+                OrderStatus.PLACED
         );
 
         orderRepository.save(order);
@@ -144,5 +145,56 @@ public class OrderService {
                 + product.getName()
                 + " | Quantity: "
                 + quantity;
+    }
+
+    public OrderEntity updateOrderStatus(
+            Long orderId,
+            OrderStatus newStatus) {
+
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Order not found: " + orderId
+                        )
+                );
+
+        OrderStatus currentStatus = order.getStatus();
+
+        boolean validTransition =
+                switch (currentStatus) {
+
+                    case PLACED ->
+                            newStatus == OrderStatus.CONFIRMED ||
+                                    newStatus == OrderStatus.CANCELLED;
+
+                    case CONFIRMED ->
+                            newStatus == OrderStatus.PROCESSING ||
+                                    newStatus == OrderStatus.CANCELLED;
+
+                    case PROCESSING ->
+                            newStatus == OrderStatus.SHIPPED ||
+                                    newStatus == OrderStatus.CANCELLED;
+
+                    case SHIPPED ->
+                            newStatus == OrderStatus.DELIVERED;
+
+                    case DELIVERED, CANCELLED ->
+                            false;
+                };
+
+        if (!validTransition) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid status transition: "
+                            + currentStatus
+                            + " → "
+                            + newStatus
+            );
+        }
+
+        order.setStatus(newStatus);
+
+        return orderRepository.save(order);
     }
 }

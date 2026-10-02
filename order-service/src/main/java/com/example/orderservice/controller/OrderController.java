@@ -6,7 +6,8 @@ import com.example.orderservice.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import com.example.orderservice.entity.OrderEntity;
+import com.example.orderservice.entity.OrderStatus;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
@@ -28,6 +29,19 @@ public class OrderController {
     public String getInstance() throws UnknownHostException {
         return "Order Service instance: "
                 + InetAddress.getLocalHost().getHostName();
+    }
+
+    @PutMapping("/{orderId}/status")
+    public ResponseEntity<OrderEntity> updateOrderStatus(
+            @PathVariable Long orderId,
+            @RequestParam OrderStatus status) {
+
+        return ResponseEntity.ok(
+                orderService.updateOrderStatus(
+                        orderId,
+                        status
+                )
+        );
     }
 
     @PostMapping
