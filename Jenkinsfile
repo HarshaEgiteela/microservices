@@ -2,15 +2,34 @@ pipeline {
     agent any
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Test') {
+        stage('Test User Service') {
             steps {
-                echo 'Running tests...'
+                dir('user-service') {
+                    bat 'mvnw.cmd test'
+                }
+            }
+        }
+
+        stage('Test Product Service') {
+            steps {
+                dir('product-service') {
+                    bat 'mvnw.cmd test'
+                }
+            }
+        }
+
+        stage('Test Order Service') {
+            steps {
+                dir('order-service') {
+                    bat 'mvnw.cmd test'
+                }
             }
         }
     }
