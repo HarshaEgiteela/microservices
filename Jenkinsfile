@@ -32,5 +32,21 @@ pipeline {
                 }
             }
         }
+
+        stage('Build Services') {
+            steps {
+                dir('user-service') {
+                    bat 'mvnw.cmd package -DskipTests'
+                }
+
+                dir('product-service') {
+                    bat 'mvnw.cmd package -DskipTests'
+                }
+
+                dir('order-service') {
+                    bat 'mvnw.cmd package -DskipTests'
+                }
+            }
+        }
     }
 }
