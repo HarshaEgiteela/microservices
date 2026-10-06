@@ -4,7 +4,7 @@ services:
   # Eureka Server
   # -------------------------
   eureka-server:
-    build: ./eureka-server
+    image: harshaegiteela/eureka-server:latest
     container_name: eureka-server
     restart: unless-stopped
     ports:
@@ -30,7 +30,7 @@ services:
   # User Service
   # -------------------------
   user-service:
-    build: ./user-service
+    image: harshaegiteela/user-service:latest
     container_name: user-service
     restart: unless-stopped
 
@@ -65,7 +65,7 @@ services:
   # Product Service
   # -------------------------
   product-service:
-    build: ./product-service
+    image: harshaegiteela/product-service:latest
     container_name: product-service
     restart: unless-stopped
 
@@ -100,7 +100,7 @@ services:
   # Order Service
   # -------------------------
   order-service:
-    build: ./order-service
+    image: harshaegiteela/order-service:latest
     container_name: order-service
     restart: unless-stopped
 
@@ -132,7 +132,7 @@ services:
   # API Gateway
   # -------------------------
   api-gateway:
-    build: ./api-gateway
+    image: harshaegiteela/api-gateway:latest
     container_name: api-gateway
     restart: unless-stopped
 
