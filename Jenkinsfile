@@ -160,5 +160,14 @@ pipeline {
                 }
             }
         }
+        stage('Deploy to AWS EC2') {
+            steps {
+                sshagent(['ec2-deploy-key']) {
+                    bat '''
+                        ssh -o StrictHostKeyChecking=no ec2-user@16.178.17.40 "cd ~/microservices && docker-compose pull && docker-compose up -d"
+                    '''
+                }
+            }
+        }
     }
 }
