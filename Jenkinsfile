@@ -9,6 +9,10 @@ pipeline {
             }
         }
 
+        // =========================
+        // TESTS
+        // =========================
+
         stage('Test User Service') {
             steps {
                 dir('user-service') {
@@ -33,8 +37,13 @@ pipeline {
             }
         }
 
+        // =========================
+        // MAVEN BUILD
+        // =========================
+
         stage('Build Services') {
             steps {
+
                 dir('user-service') {
                     bat 'mvnw.cmd package -DskipTests'
                 }
@@ -46,8 +55,21 @@ pipeline {
                 dir('order-service') {
                     bat 'mvnw.cmd package -DskipTests'
                 }
+
+                dir('api-gateway') {
+                    bat 'mvnw.cmd package -DskipTests'
+                }
+
+                dir('eureka-server') {
+                    bat 'mvnw.cmd package -DskipTests'
+                }
             }
         }
+
+        // =========================
+        // DOCKER - USER SERVICE
+        // =========================
+
         stage('Docker - User Service') {
             steps {
                 withCredentials([usernamePassword(
@@ -59,6 +81,82 @@ pipeline {
                     bat 'docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%'
                     bat 'docker build -t %DOCKER_USERNAME%/user-service:latest ./user-service'
                     bat 'docker push %DOCKER_USERNAME%/user-service:latest'
+                }
+            }
+        }
+
+        // =========================
+        // DOCKER - PRODUCT SERVICE
+        // =========================
+
+        stage('Docker - Product Service') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD'
+                )]) {
+
+                    bat 'docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%'
+                    bat 'docker build -t %DOCKER_USERNAME%/product-service:latest ./product-service'
+                    bat 'docker push %DOCKER_USERNAME%/product-service:latest'
+                }
+            }
+        }
+
+        // =========================
+        // DOCKER - ORDER SERVICE
+        // =========================
+
+        stage('Docker - Order Service') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD'
+                )]) {
+
+                    bat 'docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%'
+                    bat 'docker build -t %DOCKER_USERNAME%/order-service:latest ./order-service'
+                    bat 'docker push %DOCKER_USERNAME%/order-service:latest'
+                }
+            }
+        }
+
+        // =========================
+        // DOCKER - API GATEWAY
+        // =========================
+
+        stage('Docker - API Gateway') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD'
+                )]) {
+
+                    bat 'docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%'
+                    bat 'docker build -t %DOCKER_USERNAME%/api-gateway:latest ./api-gateway'
+                    bat 'docker push %DOCKER_USERNAME%/api-gateway:latest'
+                }
+            }
+        }
+
+        // =========================
+        // DOCKER - EUREKA SERVER
+        // =========================
+
+        stage('Docker - Eureka Server') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD'
+                )]) {
+
+                    bat 'docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%'
+                    bat 'docker build -t %DOCKER_USERNAME%/eureka-server:latest ./eureka-server'
+                    bat 'docker push %DOCKER_USERNAME%/eureka-server:latest'
                 }
             }
         }
