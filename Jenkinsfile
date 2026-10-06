@@ -48,5 +48,19 @@ pipeline {
                 }
             }
         }
+        stage('Docker - User Service') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD'
+                )]) {
+
+                    bat 'docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%'
+                    bat 'docker build -t %DOCKER_USERNAME%/user-service:latest ./user-service'
+                    bat 'docker push %DOCKER_USERNAME%/user-service:latest'
+                }
+            }
+        }
     }
 }
