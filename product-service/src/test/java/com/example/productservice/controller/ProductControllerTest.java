@@ -1,6 +1,8 @@
 package com.example.productservice.controller;
 
 import com.example.productservice.entity.Product;
+import com.example.productservice.exception.GlobalExceptionHandler;
+import com.example.productservice.exception.ResourceNotFoundException;
 import com.example.productservice.service.ProductService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +40,7 @@ class ProductControllerTest {
 
         mockMvc = MockMvcBuilders
                 .standaloneSetup(productController)
+                .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
 
         objectMapper = new ObjectMapper();
@@ -144,6 +147,36 @@ class ProductControllerTest {
 
         verify(productService)
                 .getProductById(1L);
+    }
+
+
+    // =========================================================
+    // GET /products/{id} - NOT FOUND
+    // =========================================================
+
+    @Test
+    void getProduct_shouldReturn404WhenProductNotFound()
+            throws Exception {
+
+        when(productService.getProductById(999L))
+                .thenThrow(
+                        new ResourceNotFoundException(
+                                "Product not found"
+                        )
+                );
+
+
+        mockMvc
+                .perform(get("/products/999"))
+
+                .andExpect(status().isNotFound())
+
+                .andExpect(content()
+                        .string("Product not found"));
+
+
+        verify(productService)
+                .getProductById(999L);
     }
 
 

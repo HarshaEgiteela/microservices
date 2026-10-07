@@ -1,5 +1,6 @@
 package com.example.userservice.controller;
 
+import com.example.userservice.exception.GlobalExceptionHandler;
 import com.example.userservice.dto.AuthResponse;
 import com.example.userservice.dto.LoginRequest;
 import com.example.userservice.dto.RegisterRequest;
@@ -47,6 +48,7 @@ class UserControllerTest {
         if (mockMvc == null) {
             mockMvc = MockMvcBuilders
                     .standaloneSetup(userController)
+                    .setControllerAdvice(new GlobalExceptionHandler())
                     .build();
         }
 

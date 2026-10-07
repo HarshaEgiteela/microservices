@@ -4,6 +4,7 @@ import com.example.orderservice.dto.Product;
 import com.example.orderservice.dto.User;
 import com.example.orderservice.entity.OrderEntity;
 import com.example.orderservice.entity.OrderStatus;
+import com.example.orderservice.exception.ResourceNotFoundException;
 import com.example.orderservice.repository.OrderRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 
@@ -134,9 +134,9 @@ class OrderServiceTest {
     @Test
     void placeOrder_shouldRejectZeroQuantity() {
 
-        ResponseStatusException exception =
+        IllegalArgumentException exception =
                 assertThrows(
-                        ResponseStatusException.class,
+                        IllegalArgumentException.class,
                         () -> orderService.placeOrder(
                                 1L,
                                 2L,
@@ -145,13 +145,8 @@ class OrderServiceTest {
                 );
 
         assertEquals(
-                HttpStatus.BAD_REQUEST,
-                exception.getStatusCode()
-        );
-
-        assertEquals(
                 "Quantity must be greater than zero",
-                exception.getReason()
+                exception.getMessage()
         );
 
         verifyNoInteractions(restTemplate);
@@ -162,9 +157,9 @@ class OrderServiceTest {
     @Test
     void placeOrder_shouldRejectNegativeQuantity() {
 
-        ResponseStatusException exception =
+        IllegalArgumentException exception =
                 assertThrows(
-                        ResponseStatusException.class,
+                        IllegalArgumentException.class,
                         () -> orderService.placeOrder(
                                 1L,
                                 2L,
@@ -173,13 +168,8 @@ class OrderServiceTest {
                 );
 
         assertEquals(
-                HttpStatus.BAD_REQUEST,
-                exception.getStatusCode()
-        );
-
-        assertEquals(
                 "Quantity must be greater than zero",
-                exception.getReason()
+                exception.getMessage()
         );
 
         verifyNoInteractions(restTemplate);
@@ -206,9 +196,9 @@ class OrderServiceTest {
                 eq(User.class)
         )).thenThrow(notFound);
 
-        ResponseStatusException exception =
+        ResourceNotFoundException exception =
                 assertThrows(
-                        ResponseStatusException.class,
+                        ResourceNotFoundException.class,
                         () -> orderService.placeOrder(
                                 999L,
                                 2L,
@@ -217,13 +207,8 @@ class OrderServiceTest {
                 );
 
         assertEquals(
-                HttpStatus.NOT_FOUND,
-                exception.getStatusCode()
-        );
-
-        assertEquals(
                 "User not found: 999",
-                exception.getReason()
+                exception.getMessage()
         );
 
         verify(orderRepository, never())
@@ -261,9 +246,9 @@ class OrderServiceTest {
                 eq(Product.class)
         )).thenThrow(notFound);
 
-        ResponseStatusException exception =
+        ResourceNotFoundException exception =
                 assertThrows(
-                        ResponseStatusException.class,
+                        ResourceNotFoundException.class,
                         () -> orderService.placeOrder(
                                 1L,
                                 999L,
@@ -272,13 +257,8 @@ class OrderServiceTest {
                 );
 
         assertEquals(
-                HttpStatus.NOT_FOUND,
-                exception.getStatusCode()
-        );
-
-        assertEquals(
                 "Product not found: 999",
-                exception.getReason()
+                exception.getMessage()
         );
 
         verify(orderRepository, never())
@@ -312,9 +292,9 @@ class OrderServiceTest {
                 eq(Product.class)
         )).thenReturn(ResponseEntity.ok(product));
 
-        ResponseStatusException exception =
+        IllegalArgumentException exception =
                 assertThrows(
-                        ResponseStatusException.class,
+                        IllegalArgumentException.class,
                         () -> orderService.placeOrder(
                                 1L,
                                 2L,
@@ -323,13 +303,8 @@ class OrderServiceTest {
                 );
 
         assertEquals(
-                HttpStatus.BAD_REQUEST,
-                exception.getStatusCode()
-        );
-
-        assertEquals(
                 "Insufficient stock. Available: 2",
-                exception.getReason()
+                exception.getMessage()
         );
 
         verify(restTemplate, never())
@@ -635,9 +610,9 @@ class OrderServiceTest {
         when(orderRepository.findById(1L))
                 .thenReturn(Optional.of(order));
 
-        ResponseStatusException exception =
+        IllegalArgumentException exception =
                 assertThrows(
-                        ResponseStatusException.class,
+                        IllegalArgumentException.class,
                         () -> orderService.updateOrderStatus(
                                 1L,
                                 OrderStatus.SHIPPED
@@ -645,13 +620,8 @@ class OrderServiceTest {
                 );
 
         assertEquals(
-                HttpStatus.BAD_REQUEST,
-                exception.getStatusCode()
-        );
-
-        assertEquals(
                 "Invalid status transition: PLACED → SHIPPED",
-                exception.getReason()
+                exception.getMessage()
         );
 
         verify(orderRepository, never())
@@ -673,9 +643,9 @@ class OrderServiceTest {
         when(orderRepository.findById(1L))
                 .thenReturn(Optional.of(order));
 
-        ResponseStatusException exception =
+        IllegalArgumentException exception =
                 assertThrows(
-                        ResponseStatusException.class,
+                        IllegalArgumentException.class,
                         () -> orderService.updateOrderStatus(
                                 1L,
                                 OrderStatus.PLACED
@@ -683,8 +653,8 @@ class OrderServiceTest {
                 );
 
         assertEquals(
-                HttpStatus.BAD_REQUEST,
-                exception.getStatusCode()
+                "Invalid status transition: DELIVERED → PLACED",
+                exception.getMessage()
         );
 
         verify(orderRepository, never())
@@ -706,9 +676,9 @@ class OrderServiceTest {
         when(orderRepository.findById(1L))
                 .thenReturn(Optional.of(order));
 
-        ResponseStatusException exception =
+        IllegalArgumentException exception =
                 assertThrows(
-                        ResponseStatusException.class,
+                        IllegalArgumentException.class,
                         () -> orderService.updateOrderStatus(
                                 1L,
                                 OrderStatus.CONFIRMED
@@ -716,8 +686,8 @@ class OrderServiceTest {
                 );
 
         assertEquals(
-                HttpStatus.BAD_REQUEST,
-                exception.getStatusCode()
+                "Invalid status transition: CANCELLED → CONFIRMED",
+                exception.getMessage()
         );
 
         verify(orderRepository, never())
@@ -731,9 +701,9 @@ class OrderServiceTest {
         when(orderRepository.findById(999L))
                 .thenReturn(Optional.empty());
 
-        ResponseStatusException exception =
+        ResourceNotFoundException exception =
                 assertThrows(
-                        ResponseStatusException.class,
+                        ResourceNotFoundException.class,
                         () -> orderService.updateOrderStatus(
                                 999L,
                                 OrderStatus.CONFIRMED
@@ -741,13 +711,8 @@ class OrderServiceTest {
                 );
 
         assertEquals(
-                HttpStatus.NOT_FOUND,
-                exception.getStatusCode()
-        );
-
-        assertEquals(
                 "Order not found: 999",
-                exception.getReason()
+                exception.getMessage()
         );
 
         verify(orderRepository, never())

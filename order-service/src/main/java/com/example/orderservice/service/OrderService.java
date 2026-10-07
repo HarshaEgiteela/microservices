@@ -4,18 +4,17 @@ import com.example.orderservice.dto.Product;
 import com.example.orderservice.dto.User;
 import com.example.orderservice.entity.OrderEntity;
 import com.example.orderservice.entity.OrderStatus;
+import com.example.orderservice.exception.ResourceNotFoundException;
 import com.example.orderservice.repository.OrderRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +23,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final RestTemplate restTemplate;
     private final HttpServletRequest httpRequest;
+
 
     private HttpEntity<Void> createAuthenticatedRequest() {
 
@@ -39,19 +39,21 @@ public class OrderService {
         return new HttpEntity<>(headers);
     }
 
+
     public String placeOrder(
             Long userId,
             Long productId,
             int quantity) {
 
         if (quantity <= 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
+            throw new IllegalArgumentException(
                     "Quantity must be greater than zero"
             );
         }
 
+
         // Check user
+
         User user;
 
         try {
@@ -68,13 +70,14 @@ public class OrderService {
 
         } catch (HttpClientErrorException.NotFound e) {
 
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
+            throw new ResourceNotFoundException(
                     "User not found: " + userId
             );
         }
 
+
         // Check product
+
         Product product;
 
         try {
@@ -91,23 +94,25 @@ public class OrderService {
 
         } catch (HttpClientErrorException.NotFound e) {
 
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
+            throw new ResourceNotFoundException(
                     "Product not found: " + productId
             );
         }
 
+
         // Check stock
+
         if (product.getQuantity() < quantity) {
 
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
+            throw new IllegalArgumentException(
                     "Insufficient stock. Available: "
                             + product.getQuantity()
             );
         }
 
+
         // Reduce product quantity
+
         try {
 
             restTemplate.exchange(
@@ -122,13 +127,14 @@ public class OrderService {
 
         } catch (HttpClientErrorException e) {
 
-            throw new ResponseStatusException(
-                    e.getStatusCode(),
+            throw new IllegalArgumentException(
                     e.getResponseBodyAsString()
             );
         }
 
+
         // Create order
+
         OrderEntity order = new OrderEntity(
                 null,
                 userId,
@@ -139,6 +145,7 @@ public class OrderService {
 
         orderRepository.save(order);
 
+
         return "Order placed for "
                 + user.getName()
                 + " | Product: "
@@ -147,19 +154,21 @@ public class OrderService {
                 + quantity;
     }
 
+
     public OrderEntity updateOrderStatus(
             Long orderId,
             OrderStatus newStatus) {
 
         OrderEntity order = orderRepository.findById(orderId)
                 .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
+                        new ResourceNotFoundException(
                                 "Order not found: " + orderId
                         )
                 );
 
+
         OrderStatus currentStatus = order.getStatus();
+
 
         boolean validTransition =
                 switch (currentStatus) {
@@ -183,15 +192,17 @@ public class OrderService {
                             false;
                 };
 
+
         if (!validTransition) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
+
+            throw new IllegalArgumentException(
                     "Invalid status transition: "
                             + currentStatus
                             + " → "
                             + newStatus
             );
         }
+
 
         order.setStatus(newStatus);
 

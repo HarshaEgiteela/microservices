@@ -10,6 +10,8 @@ import com.example.userservice.dto.RegisterRequest;
 import java.util.List;
 import com.example.userservice.dto.AuthResponse;
 import com.example.userservice.dto.LoginRequest;
+import com.example.userservice.exception.ResourceNotFoundException;
+
 
 @RestController
 @RequestMapping("/users")
@@ -38,9 +40,14 @@ public class UserController {
 
     @GetMapping("/{id}")
     public ResponseEntity<User> getUser(@PathVariable Long id) {
-        return repository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+
+        User user = repository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with id: " + id)
+                );
+
+        return ResponseEntity.ok(user);
     }
 
     @PostMapping("/login")
