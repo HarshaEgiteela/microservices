@@ -1,0 +1,95 @@
+<section class="mx-auto max-w-7xl px-5 py-8 sm:py-12">
+  <div class="overflow-hidden rounded-3xl bg-blue-700 text-white">
+    <div class="grid gap-8 px-6 py-10 sm:px-10 sm:py-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+      <div>
+        <span class="inline-flex rounded-full bg-yellow-300 px-3 py-1.5 text-xs font-extrabold uppercase tracking-wider text-blue-950">
+          Shop smarter
+        </span>
+        <h1 class="mt-5 max-w-2xl text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
+          Good finds.<br /><span class="text-yellow-300">Great prices.</span>
+        </h1>
+        <p class="mt-4 max-w-xl text-base leading-7 text-blue-100 sm:text-lg">
+          Explore our collection, find your next favourite, and shop with confidence.
+        </p>
+        <a href="#shop" class="mt-7 inline-flex rounded-xl bg-yellow-300 px-5 py-3 font-bold text-blue-950 transition hover:bg-yellow-200">
+          Explore products <span class="ml-2" aria-hidden="true">↓</span>
+        </a>
+      </div>
+      <div class="hidden items-center justify-center lg:flex">
+        <div class="flex h-64 w-64 rotate-3 items-center justify-center rounded-[2.5rem] bg-white/10 text-9xl ring-1 ring-white/20">
+          🛍️
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (notice()) {
+    <div role="status" class="fixed right-5 top-24 z-40 rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white shadow-lg">
+      ✓ {{ notice() }}
+    </div>
+  }
+
+  <div id="shop" class="mt-12 scroll-mt-24">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <p class="text-xs font-extrabold uppercase tracking-[0.2em] text-blue-700">The collection</p>
+        <h2 class="mt-2 text-3xl font-black tracking-tight text-gray-900 sm:text-4xl">Shop our products</h2>
+        <p class="mt-2 text-gray-500">A few good things, all in one place.</p>
+      </div>
+      <span class="rounded-full bg-yellow-100 px-3 py-1.5 text-sm font-bold text-yellow-900">
+        {{ products().length }} products
+      </span>
+    </div>
+
+    @if (loading()) {
+      <app-loading label="Loading products..." />
+    }
+
+    @if (error()) {
+      <div class="mt-7 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-red-100 bg-red-50 p-5 text-red-700">
+        <p>{{ error() }}</p>
+        <button type="button" (click)="loadProducts()" class="rounded-lg bg-red-700 px-4 py-2 font-semibold text-white">Try again</button>
+      </div>
+    }
+
+    @if (!loading() && !error() && products().length === 0) {
+      <div class="mt-8 rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
+        <div class="text-5xl">📦</div>
+        <h3 class="mt-4 text-xl font-bold text-gray-900">Products are on their way</h3>
+        <p class="mt-2 text-gray-500">There are no products available right now. Check back soon.</p>
+      </div>
+    }
+
+    <div class="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      @for (product of products(); track product.id) {
+        <article class="group overflow-hidden rounded-2xl border border-gray-200 bg-white transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl">
+          <div class="relative flex h-48 items-center justify-center overflow-hidden bg-gradient-to-br from-blue-50 to-yellow-50">
+            <span class="text-7xl transition duration-200 group-hover:scale-110" aria-hidden="true">{{ productIcon(product.name) }}</span>
+            @if (product.quantity > 0) {
+              <span class="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-green-700 shadow-sm">In stock</span>
+            } @else {
+              <span class="absolute left-3 top-3 rounded-full bg-gray-900/80 px-3 py-1 text-xs font-bold text-white">Out of stock</span>
+            }
+          </div>
+          <div class="p-5">
+            <h3 class="line-clamp-1 text-lg font-bold text-gray-900">{{ product.name }}</h3>
+            <p class="mt-2 min-h-10 text-sm leading-5 text-gray-500">
+              {{ product.description || 'A quality pick from the ShopEase collection.' }}
+            </p>
+            <div class="mt-5 flex items-center justify-between gap-3">
+              <span class="text-xl font-black text-blue-700">₹{{ product.price | number:'1.0-2' }}</span>
+              <button
+                type="button"
+                (click)="add(product)"
+                [disabled]="product.quantity <= 0"
+                class="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+              >
+                Add to cart
+              </button>
+            </div>
+          </div>
+        </article>
+      }
+    </div>
+  </div>
+</section>

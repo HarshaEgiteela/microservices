@@ -1,0 +1,123 @@
+<nav class="sticky top-0 z-50 border-b border-gray-200/80 bg-white/95 backdrop-blur">
+  <div class="mx-auto flex min-h-[68px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-5">
+
+    <!-- Brand and Home icon: always visible -->
+    <a
+      routerLink="/"
+      aria-label="ShopEase Home"
+      class="flex min-w-0 items-center gap-2 text-lg font-black tracking-tight text-blue-700 sm:text-xl"
+    >
+      <span
+        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-xl text-yellow-300 transition hover:bg-blue-800"
+        aria-hidden="true"
+      >
+        ⌂
+      </span>
+
+      <span>ShopEase<span class="text-yellow-500">.</span></span>
+    </a>
+
+    <!-- Cart stays visible outside the dropdown -->
+    <div class="flex shrink-0 items-center gap-2 sm:gap-3">
+      <button
+        type="button"
+        (click)="openCart()"
+        aria-label="Open shopping cart"
+        class="relative inline-flex h-10 items-center gap-2 rounded-xl border border-gray-200 px-3 text-sm font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+      >
+        <span aria-hidden="true">🛒</span>
+        <span class="hidden sm:inline">Cart</span>
+
+        @if (cart.count() > 0) {
+        <span
+          class="inline-flex min-w-5 items-center justify-center rounded-full bg-yellow-300 px-1.5 py-0.5 text-xs font-extrabold text-blue-950"
+        >
+            {{ cart.count() }}
+          </span>
+        }
+      </button>
+
+      <!-- Account options dropdown -->
+      <details class="relative">
+        <summary
+          aria-label="Open account menu"
+          class="flex h-10 cursor-pointer list-none items-center gap-2 rounded-xl bg-blue-700 px-3 text-sm font-bold text-white transition hover:bg-blue-800 [&::-webkit-details-marker]:hidden"
+        >
+          <span aria-hidden="true">☰</span>
+          <span class="hidden sm:inline">Menu</span>
+          <span aria-hidden="true" class="text-xs">▼</span>
+        </summary>
+
+        <div
+          class="absolute right-0 top-12 z-[60] w-52 overflow-hidden rounded-xl border border-gray-200 bg-white py-2 shadow-xl"
+        >
+          @if (auth.hasToken()) {
+          <!-- Profile placeholder until the profile feature is implemented -->
+          <div class="border-b border-gray-100 px-4 py-3">
+            <p class="font-semibold text-gray-800">My Account</p>
+            <p class="mt-1 text-xs text-gray-500">Profile coming soon</p>
+          </div>
+
+          <button
+            type="button"
+            disabled
+            class="flex w-full cursor-not-allowed items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-400"
+            title="Profile will be available when the feature is implemented"
+          >
+            <span aria-hidden="true">👤</span>
+            Profile
+            <span class="ml-auto text-xs">Soon</span>
+          </button>
+
+          @if (auth.isAdmin()) {
+          <a
+            routerLink="/admin"
+            (click)="closeMenu($event)"
+            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition hover:bg-blue-50 hover:text-blue-700"
+          >
+            <span aria-hidden="true">⚙️</span>
+            Admin Dashboard
+          </a>
+          } @else {
+          <a
+            routerLink="/orders"
+            (click)="closeMenu($event)"
+            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition hover:bg-blue-50 hover:text-blue-700"
+          >
+            <span aria-hidden="true">📦</span>
+            My Orders
+          </a>
+          }
+
+          <button
+            type="button"
+            (click)="logout(); closeMenu($event)"
+            class="flex w-full items-center gap-3 border-t border-gray-100 px-4 py-2.5 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50"
+          >
+            <span aria-hidden="true">↪</span>
+            Logout
+          </button>
+          } @else {
+          <a
+            routerLink="/login"
+            (click)="closeMenu($event)"
+            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition hover:bg-blue-50 hover:text-blue-700"
+          >
+            <span aria-hidden="true">↪</span>
+            Login
+          </a>
+
+          <a
+            routerLink="/register"
+            (click)="closeMenu($event)"
+            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition hover:bg-blue-50 hover:text-blue-700"
+          >
+            <span aria-hidden="true">✚</span>
+            Create Account
+          </a>
+          }
+        </div>
+      </details>
+    </div>
+  </div>
+</nav>

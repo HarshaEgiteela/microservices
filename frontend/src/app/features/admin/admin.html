@@ -1,0 +1,316 @@
+<section class="mx-auto max-w-7xl px-5 py-12">
+
+  <div>
+
+    <p class="text-sm font-semibold text-blue-700">
+      ADMIN
+    </p>
+
+    <h1 class="mt-1 text-4xl font-black text-gray-900">
+      Dashboard
+    </h1>
+
+    <p class="mt-2 text-gray-500">
+      Manage products, users and order status.
+    </p>
+
+  </div>
+
+  @if (loading()) {
+
+  <app-loading label="Loading dashboard..." />
+
+  }
+
+  @if (message()) {
+
+  <div class="mt-5 rounded-xl bg-green-50 p-4 text-green-700">
+    {{ message() }}
+  </div>
+
+  }
+
+  @if (error()) {
+
+  <div class="mt-5 rounded-xl bg-red-50 p-4 text-red-700">
+    {{ error() }}
+  </div>
+
+  }
+
+  <div class="mt-8 grid gap-4 md:grid-cols-3">
+
+    <div class="rounded-2xl bg-blue-700 p-6 text-white">
+      <p class="text-sm text-blue-100">
+        Products
+      </p>
+
+      <p class="mt-2 text-3xl font-black">
+        {{ products().length }}
+      </p>
+    </div>
+
+    <div class="rounded-2xl bg-gray-900 p-6 text-white">
+      <p class="text-sm text-gray-300">
+        Users
+      </p>
+
+      <p class="mt-2 text-3xl font-black">
+        {{ users().length }}
+      </p>
+    </div>
+
+    <div class="rounded-2xl bg-yellow-400 p-6 text-blue-950">
+      <p class="text-sm">
+        Orders
+      </p>
+
+      <p class="mt-2 text-3xl font-black">
+        {{ orders().length }}
+      </p>
+    </div>
+
+  </div>
+
+  <div class="mt-10 grid gap-8 lg:grid-cols-[340px_1fr]">
+
+    <section class="h-fit rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+
+      <h2 class="text-xl font-bold">
+        {{ editingId ? 'Edit product' : 'Add product' }}
+      </h2>
+
+      <div class="mt-5 space-y-4">
+
+        <input
+          [(ngModel)]="form.name"
+          placeholder="Name"
+          class="w-full rounded-xl border border-gray-300 px-4 py-3"
+        />
+
+        <input
+          [(ngModel)]="form.price"
+          type="number"
+          min="0"
+          placeholder="Price"
+          class="w-full rounded-xl border border-gray-300 px-4 py-3"
+        />
+
+        <input
+          [(ngModel)]="form.quantity"
+          type="number"
+          min="0"
+          placeholder="Quantity"
+          class="w-full rounded-xl border border-gray-300 px-4 py-3"
+        />
+
+        <textarea
+          [(ngModel)]="form.description"
+          rows="4"
+          placeholder="Description"
+          class="w-full rounded-xl border border-gray-300 px-4 py-3"
+        ></textarea>
+
+        <div class="flex gap-2">
+
+          <button
+            type="button"
+            (click)="saveProduct()"
+            class="flex-1 rounded-xl bg-blue-700 px-4 py-3 font-semibold text-white"
+          >
+            {{ editingId ? 'Update' : 'Create' }}
+          </button>
+
+          <button
+            type="button"
+            (click)="reset()"
+            class="rounded-xl border px-4 py-3"
+          >
+            Clear
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <section>
+
+      <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+
+        <h2 class="text-xl font-bold">
+          Products
+        </h2>
+
+        <div class="mt-5 divide-y divide-gray-100">
+
+          @for (
+          product of products();
+          track product.id
+          ) {
+
+          <div class="flex flex-wrap items-center gap-3 py-4">
+
+            <div class="flex-1">
+
+              <p class="font-semibold">
+                {{ product.name }}
+              </p>
+
+              <p class="text-sm text-gray-500">
+                ₹{{ product.price }}
+                ·
+                {{ product.quantity }} stock
+              </p>
+
+            </div>
+
+            <button
+              type="button"
+              (click)="edit(product)"
+              class="rounded-lg border px-3 py-2 text-sm"
+            >
+              Edit
+            </button>
+
+            <button
+              type="button"
+              (click)="deleteProduct(product.id!)"
+              class="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600"
+            >
+              Delete
+            </button>
+
+          </div>
+
+          }
+
+        </div>
+
+      </div>
+
+      <div class="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+
+        <h2 class="text-xl font-bold">
+          Orders
+        </h2>
+
+        <div class="mt-5 space-y-3">
+
+          @for (
+          order of orders();
+          track order.id
+          ) {
+
+          <div class="flex flex-wrap items-center gap-4 rounded-xl bg-gray-50 p-4">
+
+            <div class="flex-1">
+
+              <p class="font-semibold">
+                Order #{{ order.id }}
+              </p>
+
+              <p class="text-sm text-gray-500">
+                User #{{ order.userId }}
+                ·
+                Product #{{ order.productId }}
+                ·
+                Qty {{ order.quantity }}
+              </p>
+
+            </div>
+
+            <select
+              [value]="order.status"
+              (change)="updateStatus(
+                  order,
+                  $any($event.target).value
+                )"
+              class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            >
+
+              @for (
+              status of statuses;
+              track status
+              ) {
+
+              <option [value]="status">
+                {{ status }}
+              </option>
+
+              }
+
+            </select>
+
+          </div>
+
+          }
+
+        </div>
+
+      </div>
+
+      <div class="mt-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+
+        <h2 class="text-xl font-bold">
+          Users
+        </h2>
+
+        <div class="mt-5 overflow-x-auto">
+
+          <table class="w-full text-left text-sm">
+
+            <thead class="border-b text-gray-500">
+
+            <tr>
+              <th class="py-3">ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+            </tr>
+
+            </thead>
+
+            <tbody>
+
+            @for (
+            user of users();
+            track user.id
+            ) {
+
+            <tr class="border-b last:border-0">
+
+              <td class="py-3">
+                {{ user.id }}
+              </td>
+
+              <td>
+                {{ user.name }}
+              </td>
+
+              <td>
+                {{ user.email }}
+              </td>
+
+              <td>
+                {{ user.role || 'CUSTOMER' }}
+              </td>
+
+            </tr>
+
+            }
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </div>
+
+</section>

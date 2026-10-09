@@ -1,0 +1,129 @@
+
+<div class="min-h-[calc(100vh-68px)] px-5 py-10 sm:py-14">
+  <div class="mx-auto max-w-md">
+    <div class="rounded-3xl border border-gray-200 bg-white p-7 shadow-sm sm:p-9">
+      <div class="mb-8">
+        <p class="text-sm font-extrabold uppercase tracking-[0.2em] text-blue-700">
+          Your account
+        </p>
+
+        <h1 class="mt-2 text-3xl font-black tracking-tight text-gray-900">
+          Create your account
+        </h1>
+
+        <p class="mt-2 text-sm text-gray-500">
+          Join ShopEase and start shopping.
+        </p>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="register()" class="space-y-5">
+        <!-- Name -->
+        <div>
+          <label for="name" class="mb-2 block text-sm font-semibold text-gray-700">
+            Name
+          </label>
+
+          <input
+            id="name"
+            type="text"
+            formControlName="name"
+            (input)="clearError()"
+            placeholder="Enter your name"
+            class="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
+          />
+
+          @if (form.controls.name.touched && form.controls.name.invalid) {
+          <p class="mt-1 text-sm text-red-600">
+            Name is required.
+          </p>
+          }
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label for="email" class="mb-2 block text-sm font-semibold text-gray-700">
+            Email
+          </label>
+
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            (input)="clearError()"
+            placeholder="you@example.com"
+            class="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
+          />
+
+          @if (
+          form.controls.email.touched &&
+          form.controls.email.hasError('required')
+          ) {
+          <p class="mt-1 text-sm text-red-600">
+            Email is required.
+          </p>
+          } @else if (
+          form.controls.email.touched &&
+          form.controls.email.hasError('email')
+          ) {
+          <p class="mt-1 text-sm text-red-600">
+            Enter a valid email address.
+          </p>
+          }
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label for="password" class="mb-2 block text-sm font-semibold text-gray-700">
+            Password
+          </label>
+
+          <input
+            id="password"
+            type="password"
+            formControlName="password"
+            (input)="clearError()"
+            placeholder="Enter your password"
+            class="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-600"
+          />
+
+          @if (
+          form.controls.password.touched &&
+          form.controls.password.invalid
+          ) {
+          <p class="mt-1 text-sm text-red-600">
+            Password is required.
+          </p>
+          }
+        </div>
+
+        <!-- Backend/API error -->
+        @if (errorMessage) {
+        <div
+          role="alert"
+          class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700"
+        >
+          {{ errorMessage }}
+        </div>
+        }
+
+        <button
+          type="submit"
+          [disabled]="loading"
+          class="w-full rounded-lg bg-blue-700 px-4 py-3 font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {{ loading ? 'Creating account...' : 'Create account' }}
+        </button>
+      </form>
+
+      <p class="mt-6 text-center text-sm text-gray-600">
+        Already have an account?
+        <a
+          routerLink="/login"
+          class="font-semibold text-blue-700 hover:underline"
+        >
+          Login
+        </a>
+      </p>
+    </div>
+  </div>
+</div>

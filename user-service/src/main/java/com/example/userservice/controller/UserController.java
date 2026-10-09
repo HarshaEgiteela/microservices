@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.example.userservice.dto.RegisterRequest;
 import java.util.List;
+import jakarta.validation.Valid;
 import com.example.userservice.dto.AuthResponse;
 import com.example.userservice.dto.LoginRequest;
 import com.example.userservice.exception.ResourceNotFoundException;
@@ -27,7 +28,8 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<User> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<User> register(
+            @Valid @RequestBody RegisterRequest request) {
 
         User user = authService.register(
                 request.getName(),

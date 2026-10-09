@@ -1,0 +1,162 @@
+<section class="mx-auto max-w-5xl px-5 py-12">
+
+  <div class="flex items-end justify-between gap-4">
+
+    <div>
+
+      <p class="text-sm font-semibold text-blue-700">
+        CHECKOUT
+      </p>
+
+      <h1 class="mt-1 text-4xl font-black text-gray-900">
+        Your cart
+      </h1>
+
+    </div>
+
+    <a
+      routerLink="/"
+      class="font-semibold text-blue-700"
+    >
+      ← Continue shopping
+    </a>
+
+  </div>
+
+  @if (message()) {
+
+  <div class="mt-6 rounded-xl bg-green-50 p-4 text-green-700">
+    {{ message() }}
+  </div>
+
+  }
+
+  @if (error()) {
+
+  <div class="mt-6 rounded-xl bg-red-50 p-4 text-red-700">
+    {{ error() }}
+  </div>
+
+  }
+
+  @if (!cart.cartItems().length) {
+
+  <div class="mt-10 rounded-2xl border border-dashed border-gray-300 p-12 text-center">
+
+    <div class="text-5xl">
+      🛒
+    </div>
+
+    <p class="mt-4 font-semibold text-gray-700">
+      Your cart is empty.
+    </p>
+
+    <a
+      routerLink="/"
+      class="mt-4 inline-block rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white"
+    >
+      Browse products
+    </a>
+
+  </div>
+
+  } @else {
+
+  <div class="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
+
+    <div class="space-y-3">
+
+      @for (
+      item of cart.cartItems();
+      track item.product.id
+      ) {
+
+      <article class="flex flex-wrap items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+
+        <div class="flex h-16 w-16 items-center justify-center rounded-xl bg-blue-50 text-2xl">
+          🛍️
+        </div>
+
+        <div class="min-w-40 flex-1">
+
+          <h2 class="font-bold text-gray-900">
+            {{ item.product.name }}
+          </h2>
+
+          <p class="text-sm text-gray-500">
+            ₹{{ item.product.price }} each
+          </p>
+
+        </div>
+
+        <input
+          [value]="item.quantity"
+          (change)="update(
+                item.product.id!,
+                $any($event.target).value
+              )"
+          type="number"
+          min="1"
+          [max]="item.product.quantity"
+          class="w-20 rounded-lg border border-gray-300 px-3 py-2"
+        />
+
+        <span class="w-24 text-right font-bold">
+              ₹{{ item.product.price * item.quantity }}
+            </span>
+
+        <button
+          type="button"
+          (click)="remove(item.product.id!)"
+          class="text-sm font-semibold text-red-600"
+        >
+          Remove
+        </button>
+
+      </article>
+
+      }
+
+    </div>
+
+    <aside class="h-fit rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+
+      <h2 class="text-xl font-bold">
+        Summary
+      </h2>
+
+      <div class="mt-5 flex justify-between text-gray-600">
+        <span>Items</span>
+        <span>{{ cart.count() }}</span>
+      </div>
+
+      <div class="mt-3 flex justify-between border-t pt-4 text-lg font-black">
+
+        <span>Total</span>
+
+        <span class="text-blue-700">
+            ₹{{ cart.total() }}
+          </span>
+
+      </div>
+
+      <button
+        type="button"
+        (click)="checkout()"
+        [disabled]="placing()"
+        class="mt-6 w-full rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white disabled:opacity-60"
+      >
+        {{
+        placing()
+        ? 'Placing...'
+        : 'Place order'
+        }}
+      </button>
+
+    </aside>
+
+  </div>
+
+  }
+
+</section>
