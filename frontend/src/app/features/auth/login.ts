@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { finalize } from 'rxjs';
+import { CartService } from '../../core/services/cart.service';
 
 import { AuthService } from '../../core/services/auth.service';
 
@@ -26,6 +27,7 @@ export class LoginComponent {
   passwordError = signal('');
 
   private readonly auth = inject(AuthService);
+  private readonly cart = inject(CartService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -93,7 +95,7 @@ export class LoginComponent {
             !requestedUrl.startsWith('//')
               ? requestedUrl
               : (this.auth.isAdmin() ? '/admin' : '/');
-
+          this.cart.load();
           this.router.navigateByUrl(destination);
         },
 

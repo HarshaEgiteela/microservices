@@ -1,24 +1,34 @@
-import { Injectable, computed, signal } from '@angular/core';
-import { CartItem, Product } from '../models/app.models';
 
-const CART_STORAGE_KEY = 'shopease-cart';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { finalize } from 'rxjs';
+import { API_BASE_URL } from '../config/api.config';
+import { AuthService } from './auth.service';
+import { Product } from '../models/app.models';
 
-function readSavedItems(): CartItem[] {
-  try {
-    const raw = localStorage.getItem(CART_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as CartItem[];
-    return Array.isArray(parsed) ? parsed.filter(
-      item => item?.product?.id != null && Number(item.quantity) > 0
-    ) : [];
-  } catch {
-    return [];
-  }
+export interface BackendCartItem {
+  itemId: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+}
+
+export interface BackendCart {
+  cartId: number;
+  userId: number;
+  items: BackendCartItem[];
+  totalAmount: number;
 }
 
 @Injectable({ providedIn: 'root' })
 export class CartService {
-  private readonly items = signal<CartItem[]>(readSavedItems());
+  private http = inject(HttpClient);
+  private auth = inject(AuthService);
+  private url = `${API_BASE_URL}/cart`;
+
+  private items = signal<BackendCartItem[]>([]);
   readonly cartItems = this.items.asReadonly();
 
   readonly count = computed(() =>
@@ -26,52 +36,93 @@ export class CartService {
   );
 
   readonly total = computed(() =>
-    this.items().reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+    this.items().reduce((sum, item) => sum + item.subtotal, 0)
   );
+
+  readonly loading = signal(false);
+  readonly error = signal('');
+
+  constructor() {
+    localStorage.removeItem('shopease-cart');
+
+    if (this.auth.hasToken()) {
+      this.load();
+    }
+  }
+
+  load(): void {
+    if (!this.auth.hasToken()) {
+      this.reset();
+      return;
+    }
+
+    this.loading.set(true);
+    this.error.set('');
+
+    this.http.get<BackendCart>(this.url)
+      .pipe(finalize(() => this.loading.set(false)))
+      .subscribe({
+        next: cart => this.items.set(cart.items),
+        error: () => {
+          this.items.set([]);
+          this.error.set('Unable to load your cart.');
+        }
+      });
+  }
 
   add(product: Product): void {
     if (product.id == null || product.quantity <= 0) return;
 
-    this.items.update(items => {
-      const existing = items.find(item => item.product.id === product.id);
-      if (existing) {
-        return items.map(item => item.product.id === product.id
-          ? { ...item, product, quantity: Math.min(item.quantity + 1, product.quantity) }
-          : item);
-      }
-      return [...items, { product, quantity: 1 }];
-    });
-    this.persist();
-  }
-
-  update(productId: number, quantity: number): void {
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      this.remove(productId);
+    if (!this.auth.hasToken()) {
+      this.error.set('Please log in to add products.');
       return;
     }
-    this.items.update(items => items.map(item =>
-      item.product.id === productId
-        ? { ...item, quantity: Math.min(Math.floor(quantity), item.product.quantity) }
-        : item
-    ));
-    this.persist();
+
+    this.error.set('');
+
+    this.http.post<BackendCart>(`${this.url}/items`, {
+      productId: product.id,
+      quantity: 1
+    }).subscribe({
+      next: cart => this.items.set(cart.items),
+      error: () => this.error.set('Unable to add product.')
+    });
   }
 
-  remove(productId: number): void {
-    this.items.update(items => items.filter(item => item.product.id !== productId));
-    this.persist();
+  update(itemId: number, quantity: number): void {
+    if (!Number.isFinite(quantity)) return;
+
+    if (quantity <= 0) {
+      this.remove(itemId);
+      return;
+    }
+
+    this.http.put<BackendCart>(
+      `${this.url}/items/${itemId}`,
+      { quantity: Math.floor(quantity) }
+    ).subscribe({
+      next: cart => this.items.set(cart.items),
+      error: () => this.error.set('Unable to update quantity.')
+    });
+  }
+
+  remove(itemId: number): void {
+    this.http.delete<void>(`${this.url}/items/${itemId}`)
+      .subscribe({
+        next: () => this.load(),
+        error: () => this.error.set('Unable to remove item.')
+      });
   }
 
   clear(): void {
-    this.items.set([]);
-    this.persist();
+    this.http.delete<void>(this.url).subscribe({
+      next: () => this.items.set([]),
+      error: () => this.error.set('Unable to clear cart.')
+    });
   }
 
-  private persist(): void {
-    try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(this.items()));
-    } catch {
-      // Cart remains usable in memory if browser storage is unavailable.
-    }
+  reset(): void {
+    this.items.set([]);
+    this.error.set('');
   }
 }

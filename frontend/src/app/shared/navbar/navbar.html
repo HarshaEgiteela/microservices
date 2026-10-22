@@ -1,7 +1,8 @@
+
 <nav class="sticky top-0 z-50 border-b border-gray-200/80 bg-white/95 backdrop-blur">
   <div class="mx-auto flex min-h-[68px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-5">
 
-    <!-- Brand and Home icon: always visible -->
+    <!-- Brand -->
     <a
       routerLink="/"
       aria-label="ShopEase Home"
@@ -17,8 +18,9 @@
       <span>ShopEase<span class="text-yellow-500">.</span></span>
     </a>
 
-    <!-- Cart stays visible outside the dropdown -->
+    <!-- Cart and Account Menu -->
     <div class="flex shrink-0 items-center gap-2 sm:gap-3">
+
       <button
         type="button"
         (click)="openCart()"
@@ -37,7 +39,6 @@
         }
       </button>
 
-      <!-- Account options dropdown -->
       <details class="relative">
         <summary
           aria-label="Open account menu"
@@ -51,24 +52,37 @@
         <div
           class="absolute right-0 top-12 z-[60] w-52 overflow-hidden rounded-xl border border-gray-200 bg-white py-2 shadow-xl"
         >
+
           @if (auth.hasToken()) {
-          <!-- Profile placeholder until the profile feature is implemented -->
+
           <div class="border-b border-gray-100 px-4 py-3">
             <p class="font-semibold text-gray-800">My Account</p>
-            <p class="mt-1 text-xs text-gray-500">Profile coming soon</p>
+            <p class="mt-1 text-xs text-gray-500">
+              Manage your profile and addresses
+            </p>
           </div>
 
-          <button
-            type="button"
-            disabled
-            class="flex w-full cursor-not-allowed items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-400"
-            title="Profile will be available when the feature is implemented"
+          <!-- Profile -->
+          <a
+            routerLink="/profile"
+            (click)="closeMenu($event)"
+            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition hover:bg-blue-50 hover:text-blue-700"
           >
             <span aria-hidden="true">👤</span>
-            Profile
-            <span class="ml-auto text-xs">Soon</span>
-          </button>
+            My Profile
+          </a>
 
+          <!-- My Orders -->
+          <a
+            routerLink="/orders"
+            (click)="closeMenu($event)"
+            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition hover:bg-blue-50 hover:text-blue-700"
+          >
+            <span aria-hidden="true">📦</span>
+            My Orders
+          </a>
+
+          <!-- Admin Dashboard -->
           @if (auth.isAdmin()) {
           <a
             routerLink="/admin"
@@ -78,17 +92,9 @@
             <span aria-hidden="true">⚙️</span>
             Admin Dashboard
           </a>
-          } @else {
-          <a
-            routerLink="/orders"
-            (click)="closeMenu($event)"
-            class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition hover:bg-blue-50 hover:text-blue-700"
-          >
-            <span aria-hidden="true">📦</span>
-            My Orders
-          </a>
           }
 
+          <!-- Logout -->
           <button
             type="button"
             (click)="logout(); closeMenu($event)"
@@ -97,7 +103,9 @@
             <span aria-hidden="true">↪</span>
             Logout
           </button>
+
           } @else {
+
           <a
             routerLink="/login"
             (click)="closeMenu($event)"
@@ -115,6 +123,7 @@
             <span aria-hidden="true">✚</span>
             Create Account
           </a>
+
           }
         </div>
       </details>

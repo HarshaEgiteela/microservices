@@ -1,3 +1,4 @@
+
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -10,6 +11,7 @@ import { CartService } from '../../core/services/cart.service';
   templateUrl: './navbar.html'
 })
 export class NavbarComponent {
+
   readonly auth = inject(AuthService);
   readonly cart = inject(CartService);
   readonly router = inject(Router);
@@ -20,10 +22,12 @@ export class NavbarComponent {
   }
 
   isHomePage(): boolean {
-    return this.router.url === '/' || this.router.url.startsWith('/?');
+    return this.router.url === '/' ||
+      this.router.url.startsWith('/?');
   }
 
   logout(): void {
+    this.cart.reset();
     this.auth.logout();
     this.router.navigate(['/']);
   }

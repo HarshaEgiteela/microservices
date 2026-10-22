@@ -1,0 +1,162 @@
+
+<section class="mx-auto max-w-5xl px-5 py-12">
+
+  <div class="flex items-center justify-between gap-4">
+    <div>
+      <p class="text-sm font-semibold text-blue-700">
+        MY ACCOUNT
+      </p>
+      <h1 class="text-3xl font-black text-gray-900">
+        My Addresses
+      </h1>
+      <p class="mt-2 text-gray-500">
+        Manage your saved delivery addresses.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      (click)="addNew()"
+      class="rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white">
+      + Add Address
+    </button>
+  </div>
+
+  @if (error()) {
+  <p class="mt-5 rounded-xl bg-red-50 p-4 text-red-700">
+    {{ error() }}
+  </p>
+  }
+
+  @if (message()) {
+  <p class="mt-5 rounded-xl bg-green-50 p-4 text-green-700">
+    {{ message() }}
+  </p>
+  }
+
+  @if (loading()) {
+  <p class="mt-8">Loading addresses...</p>
+  } @else if (addresses().length === 0) {
+  <div class="mt-8 rounded-2xl border p-8 text-center">
+    No saved addresses yet.
+  </div>
+  }
+
+  <div class="mt-8 grid gap-4 md:grid-cols-2">
+    @for (a of addresses(); track a.id) {
+    <article class="rounded-2xl border bg-white p-6 shadow-sm">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold">{{ a.label }}</h3>
+
+        @if (a.isDefault) {
+        <span class="rounded-full bg-green-100 px-3 py-1 text-xs text-green-700">
+              Default
+            </span>
+        }
+      </div>
+
+      <p class="mt-4 font-semibold">{{ a.recipientName }}</p>
+      <p>{{ a.phone }}</p>
+      <p>{{ a.addressLine1 }}</p>
+      @if (a.addressLine2) {
+      <p>{{ a.addressLine2 }}</p>
+      }
+      <p>{{ a.city }}, {{ a.state }} - {{ a.postalCode }}</p>
+      <p>{{ a.country }}</p>
+
+      <div class="mt-5 flex flex-wrap gap-3">
+        <button type="button"
+                (click)="edit(a)"
+                class="font-semibold text-blue-700">
+          Edit
+        </button>
+
+        @if (!a.isDefault) {
+        <button type="button"
+                (click)="setDefault(a.id)"
+                class="font-semibold text-green-700">
+          Set Default
+        </button>
+        }
+
+        <button type="button"
+                (click)="remove(a.id)"
+                class="font-semibold text-red-600">
+          Delete
+        </button>
+      </div>
+    </article>
+    }
+  </div>
+
+  @if (showForm()) {
+  <form
+    #addressForm="ngForm"
+    (ngSubmit)="save()"
+    class="mt-8 space-y-4 rounded-2xl border bg-white p-6 shadow-sm">
+
+    <h2 class="text-xl font-bold">
+      {{ editingId() === null ? 'Add Address' : 'Edit Address' }}
+    </h2>
+
+    <label class="block">Address Type</label>
+    <select name="label" [(ngModel)]="form.label"
+            class="w-full rounded-lg border p-3">
+      <option value="Home">Home</option>
+      <option value="Office">Office</option>
+      <option value="Other">Other</option>
+    </select>
+
+    <label class="block">Recipient Name</label>
+    <input name="recipientName"
+           [(ngModel)]="form.recipientName" required
+           class="w-full rounded-lg border p-3"/>
+
+    <label class="block">Phone</label>
+    <input name="phone"
+           [(ngModel)]="form.phone" required maxlength="20"
+           class="w-full rounded-lg border p-3"/>
+
+    <label class="block">Address Line 1</label>
+    <input name="addressLine1"
+           [(ngModel)]="form.addressLine1" required
+           class="w-full rounded-lg border p-3"/>
+
+    <label class="block">Address Line 2</label>
+    <input name="addressLine2"
+           [(ngModel)]="form.addressLine2"
+           class="w-full rounded-lg border p-3"/>
+
+    <label class="block">City</label>
+    <input name="city" [(ngModel)]="form.city" required
+           class="w-full rounded-lg border p-3"/>
+
+    <label class="block">State</label>
+    <input name="state" [(ngModel)]="form.state" required
+           class="w-full rounded-lg border p-3"/>
+
+    <label class="block">PIN Code</label>
+    <input name="postalCode"
+           [(ngModel)]="form.postalCode" required
+           class="w-full rounded-lg border p-3"/>
+
+    <label class="block">Country</label>
+    <input name="country"
+           [(ngModel)]="form.country" required
+           class="w-full rounded-lg border p-3"/>
+
+    <div class="flex gap-3">
+      <button type="submit"
+              [disabled]="addressForm.invalid || saving()"
+              class="rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white disabled:opacity-50">
+        {{ saving() ? 'Saving...' : 'Save Address' }}
+      </button>
+
+      <button type="button" (click)="cancel()"
+              class="rounded-xl border px-5 py-3">
+        Cancel
+      </button>
+    </div>
+  </form>
+  }
+</section>
