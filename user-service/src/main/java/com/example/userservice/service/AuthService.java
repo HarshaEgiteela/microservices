@@ -9,6 +9,7 @@ import com.example.userservice.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -23,7 +24,7 @@ public class AuthService {
     // =========================
     // REGISTER
     // =========================
-
+    @Transactional
     public User register(
             String name,
             String email,
@@ -121,7 +122,7 @@ public class AuthService {
         }
 
         String token = jwtUtil.generateToken(
-                user.getEmail(),
+                user.getId(),
                 authentication.getRole()
         );
 

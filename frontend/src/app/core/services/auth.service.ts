@@ -1,18 +1,30 @@
-import { Injectable } from '@angular/core';
+
+import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
+
 import {
   AuthResponse,
   LoginRequest,
   RegisterRequest
 } from '../models/app.models';
+
 import { API_BASE_URL } from '../config/api.config';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+
   private readonly tokenKey = 'token';
   private readonly roleKey = 'role';
   private readonly userIdKey = 'userId';
+
+  private readonly tokenState = signal<string | null>(
+    localStorage.getItem(this.tokenKey)
+  );
+
+  private readonly roleState = signal<string | null>(
+    localStorage.getItem(this.roleKey)
+  );
 
   constructor(private readonly http: HttpClient) {}
 
@@ -25,10 +37,11 @@ export class AuthService {
     );
   }
 
-  register(request: RegisterRequest): Observable<unknown> {
+  register(request: RegisterRequest): Observable<string> {
     return this.http.post(
       `${API_BASE_URL}/users`,
-      request
+      request,
+      { responseType: 'text' }
     );
   }
 
@@ -36,38 +49,56 @@ export class AuthService {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.roleKey);
     localStorage.removeItem(this.userIdKey);
+
+    this.tokenState.set(null);
+    this.roleState.set(null);
   }
 
   hasToken(): boolean {
-    return !!localStorage.getItem(this.tokenKey);
+    return !!this.tokenState();
   }
 
   getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    return this.tokenState();
   }
 
   getRole(): string | null {
-    return localStorage.getItem(this.roleKey);
+    return this.roleState();
   }
 
   isAdmin(): boolean {
-    return this.getRole() === 'ADMIN';
+    return this.roleState() === 'ADMIN';
   }
 
   getUserId(): number | null {
     const value = localStorage.getItem(this.userIdKey);
-    if (!value) return null;
+
+    if (!value) {
+      return null;
+    }
+
     const id = Number(value);
+
     return Number.isFinite(id) ? id : null;
   }
 
   private storeAuth(response: AuthResponse): void {
+
     const token = response.token ?? response.jwt;
     const role = response.role ?? response.user?.role;
-    const userId = response.userId ?? response.id ?? response.user?.id;
+    const userId =
+      response.userId ?? response.id ?? response.user?.id;
 
-    if (token) localStorage.setItem(this.tokenKey, token);
-    if (role) localStorage.setItem(this.roleKey, role);
+    if (token) {
+      localStorage.setItem(this.tokenKey, token);
+      this.tokenState.set(token);
+    }
+
+    if (role) {
+      localStorage.setItem(this.roleKey, role);
+      this.roleState.set(role);
+    }
+
     if (userId !== undefined && userId !== null) {
       localStorage.setItem(this.userIdKey, String(userId));
     }

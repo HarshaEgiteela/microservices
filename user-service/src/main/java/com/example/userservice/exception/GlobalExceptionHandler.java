@@ -46,6 +46,17 @@ public class GlobalExceptionHandler {
                 .body(message);
     }
 
+    @ExceptionHandler(
+            org.springframework.dao.DataIntegrityViolationException.class
+    )
+    public ResponseEntity<String> handleDatabaseConflict(
+            org.springframework.dao.DataIntegrityViolationException ex
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body("A conflicting record already exists");
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleException(
             Exception ex) {

@@ -1,8 +1,10 @@
+
 package com.example.orderservice.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -21,8 +23,8 @@ public class JwtUtil {
         );
     }
 
-    public String extractEmail(String token) {
-        return getClaims(token).getSubject();
+    public Long extractUserId(String token) {
+        return Long.valueOf(getClaims(token).getSubject());
     }
 
     public String extractRole(String token) {
@@ -31,8 +33,14 @@ public class JwtUtil {
 
     public boolean isValid(String token) {
         try {
-            getClaims(token);
-            return true;
+            Claims claims = getClaims(token);
+
+            Long.valueOf(claims.getSubject());
+
+            String role = claims.get("role", String.class);
+
+            return role != null && !role.isBlank();
+
         } catch (Exception e) {
             return false;
         }

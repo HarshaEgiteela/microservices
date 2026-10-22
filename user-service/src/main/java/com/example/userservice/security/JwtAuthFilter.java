@@ -1,3 +1,4 @@
+
 package com.example.userservice.security;
 
 import jakarta.servlet.FilterChain;
@@ -42,15 +43,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         try {
-
             if (jwtUtil.isValid(token)) {
 
-                String email = jwtUtil.extractEmail(token);
+                Long userId = jwtUtil.extractUserId(token);
                 String role = jwtUtil.extractRole(token);
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
-                                email,
+                                userId,
                                 null,
                                 List.of(
                                         new SimpleGrantedAuthority(
@@ -65,7 +65,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
 
         } catch (Exception e) {
-
             SecurityContextHolder.clearContext();
         }
 

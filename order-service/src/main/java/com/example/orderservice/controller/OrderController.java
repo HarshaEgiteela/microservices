@@ -1,11 +1,15 @@
+
 package com.example.orderservice.controller;
 
-import com.example.orderservice.entity.OrderEntity;
+import com.example.orderservice.dto.CheckoutRequest;
+import com.example.orderservice.dto.OrderResponse;
 import com.example.orderservice.entity.OrderStatus;
-import com.example.orderservice.repository.OrderRepository;
 import com.example.orderservice.service.OrderService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.InetAddress;
@@ -17,50 +21,70 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderController {
 
-    private final OrderRepository repository;
     private final OrderService orderService;
 
+    @PostMapping("/checkout")
+    public ResponseEntity<OrderResponse> checkout(
+            Authentication authentication,
+            @RequestHeader("Authorization") String authorization,
+            @Valid @RequestBody CheckoutRequest request
+    ) {
+        Long userId = (Long) authentication.getPrincipal();
 
-    @GetMapping
-    public List<OrderEntity> getAllOrders() {
-        return repository.findAll();
+        String token = authorization.substring(7);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(orderService.checkout(
+                        userId,
+                        request.addressId(),
+                        token
+                ));
     }
 
+    @GetMapping("/my")
+    public ResponseEntity<List<OrderResponse>> getMyOrders(
+            Authentication authentication
+    ) {
+        Long userId = (Long) authentication.getPrincipal();
+
+        return ResponseEntity.ok(
+                orderService.getMyOrders(userId)
+        );
+    }
+
+    @GetMapping("/my/{orderId}")
+    public ResponseEntity<OrderResponse> getMyOrder(
+            Authentication authentication,
+            @PathVariable Long orderId
+    ) {
+        Long userId = (Long) authentication.getPrincipal();
+
+        return ResponseEntity.ok(
+                orderService.getMyOrder(userId, orderId)
+        );
+    }
+
+    @GetMapping
+    public ResponseEntity<List<OrderResponse>> getAllOrders() {
+        return ResponseEntity.ok(
+                orderService.getAllOrders()
+        );
+    }
+
+    @PutMapping("/{orderId}/status")
+    public ResponseEntity<OrderResponse> updateOrderStatus(
+            @PathVariable Long orderId,
+            @RequestParam OrderStatus status
+    ) {
+        return ResponseEntity.ok(
+                orderService.updateOrderStatus(orderId, status)
+        );
+    }
 
     @GetMapping("/instance")
     public String getInstance() throws UnknownHostException {
-
         return "Order Service instance: "
                 + InetAddress.getLocalHost().getHostName();
-    }
-
-
-    @PutMapping("/{orderId}/status")
-    public ResponseEntity<OrderEntity> updateOrderStatus(
-            @PathVariable Long orderId,
-            @RequestParam OrderStatus status) {
-
-        return ResponseEntity.ok(
-                orderService.updateOrderStatus(
-                        orderId,
-                        status
-                )
-        );
-    }
-
-
-    @PostMapping
-    public ResponseEntity<String> placeOrder(
-            @RequestParam Long userId,
-            @RequestParam Long productId,
-            @RequestParam int quantity) {
-
-        return ResponseEntity.ok(
-                orderService.placeOrder(
-                        userId,
-                        productId,
-                        quantity
-                )
-        );
     }
 }

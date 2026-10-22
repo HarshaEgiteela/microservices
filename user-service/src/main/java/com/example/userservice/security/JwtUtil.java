@@ -1,8 +1,10 @@
+
 package com.example.userservice.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -25,43 +27,50 @@ public class JwtUtil {
         );
     }
 
-    public String generateToken(String email, String role) {
+    // Generate JWT using the database user ID
+    public String generateToken(Long userId, String role) {
 
         Date now = new Date();
 
         return Jwts.builder()
-                .subject(email)
+                .subject(String.valueOf(userId))
                 .claim("role", role)
                 .issuedAt(now)
-                .expiration(new Date(now.getTime() + expirationMs))
+                .expiration(
+                        new Date(now.getTime() + expirationMs)
+                )
                 .signWith(getSigningKey())
                 .compact();
     }
 
-    public String extractEmail(String token) {
-
-        return getClaims(token)
-                .getSubject();
+    // Extract the user ID from the JWT subject
+    public Long extractUserId(String token) {
+        return Long.valueOf(
+                getClaims(token).getSubject()
+        );
     }
 
     public String extractRole(String token) {
-
         return getClaims(token)
                 .get("role", String.class);
     }
 
     public boolean isValid(String token) {
-
         try {
-            getClaims(token);
-            return true;
+            Claims claims = getClaims(token);
+
+            Long userId = Long.valueOf(claims.getSubject());
+            String role = claims.get("role", String.class);
+
+            return userId > 0
+                    && ("CUSTOMER".equals(role) || "ADMIN".equals(role));
+
         } catch (Exception e) {
             return false;
         }
     }
 
     private Claims getClaims(String token) {
-
         return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
