@@ -58,11 +58,11 @@ class ProductControllerTest {
     void getAllProducts_shouldReturnProducts() throws Exception {
 
         Product product1 = new Product(
-                1L, "Laptop", 75000, 10, "Test laptop"
+                1L, "Laptop", 75000, 10, "Test laptop", true
         );
 
         Product product2 = new Product(
-                2L, "Phone", 30000, 20, "Test phone"
+                2L, "Phone", 30000, 20, "Test phone", true
         );
 
         when(productService.getAllProducts())
@@ -88,7 +88,7 @@ class ProductControllerTest {
     void getProduct_shouldReturnProduct() throws Exception {
 
         Product product = new Product(
-                1L, "Laptop", 75000, 10, "Test laptop"
+                1L, "Laptop", 75000, 10, "Test laptop", true
         );
 
         when(productService.getProductById(1L))
@@ -137,11 +137,11 @@ class ProductControllerTest {
             throws Exception {
 
         Product product = new Product(
-                null, "Laptop", 75000, 10, "Test laptop"
+                null, "Laptop", 75000, 10, "Test laptop", true
         );
 
         Product savedProduct = new Product(
-                1L, "Laptop", 75000, 10, "Test laptop"
+                1L, "Laptop", 75000, 10, "Test laptop", true
         );
 
         when(productService.createProduct(any(Product.class)))
@@ -177,7 +177,8 @@ class ProductControllerTest {
                 "Updated Laptop",
                 80000,
                 15,
-                "Updated description"
+                "Updated description",
+                true
         );
 
         Product resultProduct = new Product(
@@ -185,7 +186,8 @@ class ProductControllerTest {
                 "Updated Laptop",
                 80000,
                 15,
-                "Updated description"
+                "Updated description",
+                true
         );
 
         when(productService.updateProduct(
@@ -241,7 +243,7 @@ class ProductControllerTest {
             throws Exception {
 
         Product product = new Product(
-                1L, "Laptop", 75000, 7, "Test laptop"
+                1L, "Laptop", 75000, 7, "Test laptop", true
         );
 
         when(productService.reduceQuantity(1L, 3))

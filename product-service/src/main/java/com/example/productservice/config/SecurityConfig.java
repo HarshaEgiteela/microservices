@@ -1,15 +1,20 @@
-
 package com.example.productservice.config;
 
 import com.example.productservice.security.JwtAuthFilter;
+import com.example.productservice.security.InternalStockAuthFilter;
+
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -19,6 +24,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final InternalStockAuthFilter internalStockAuthFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -44,45 +50,53 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // Public endpoints
+                        // Health checks
                         .requestMatchers(
                                 "/actuator/health",
                                 "/error"
                         ).permitAll()
 
-                        // Everyone can view products, even without login
+                        // Public product viewing
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/products",
                                 "/products/**"
                         ).permitAll()
 
-                        // Temporary compatibility with Order Service checkout.
-                        // Replace with service-to-service authentication.
+                        // Internal stock restoration
+                        // InternalStockAuthFilter checks the secret
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/internal/stock/restore"
+                        ).permitAll()
+
+                        // Checkout stock reduction
+                        // Temporary until we also move reduction
+                        // to service-to-service authentication
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/products/*/reduce-stock"
                         ).hasAnyRole("CUSTOMER", "ADMIN")
 
-                        // Stock restoration: admin-only interim rule.
+                        // Old stock restoration API must not be used
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/products/*/increase-stock"
-                        ).hasRole("ADMIN")
+                        ).denyAll()
 
-                        // Admin can create products
+                        // Admin product creation
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/products"
                         ).hasRole("ADMIN")
 
-                        // Admin can update products
+                        // Admin product updates
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/products/**"
                         ).hasRole("ADMIN")
 
-                        // Admin can delete products
+                        // Admin product deletion
                         .requestMatchers(
                                 HttpMethod.DELETE,
                                 "/products/**"
@@ -91,11 +105,50 @@ public class SecurityConfig {
                         .anyRequest().denyAll()
                 )
 
+                // Internal service authentication
+                .addFilterBefore(
+                        internalStockAuthFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                )
+
+                // JWT authentication
                 .addFilterBefore(
                         jwtAuthFilter,
                         UsernamePasswordAuthenticationFilter.class
                 );
 
         return http.build();
+    }
+
+    // Prevent InternalStockAuthFilter from also being
+    // registered automatically as a servlet filter.
+    @Bean
+    public FilterRegistrationBean<InternalStockAuthFilter>
+    internalStockFilterRegistration(
+            InternalStockAuthFilter filter
+    ) {
+
+        FilterRegistrationBean<InternalStockAuthFilter> registration =
+                new FilterRegistrationBean<>(filter);
+
+        registration.setEnabled(false);
+
+        return registration;
+    }
+
+    // Prevent JwtAuthFilter from also being
+    // registered automatically as a servlet filter.
+    @Bean
+    public FilterRegistrationBean<JwtAuthFilter>
+    jwtFilterRegistration(
+            JwtAuthFilter filter
+    ) {
+
+        FilterRegistrationBean<JwtAuthFilter> registration =
+                new FilterRegistrationBean<>(filter);
+
+        registration.setEnabled(false);
+
+        return registration;
     }
 }

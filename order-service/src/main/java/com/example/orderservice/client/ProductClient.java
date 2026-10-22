@@ -6,6 +6,7 @@ import com.example.orderservice.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -20,6 +21,13 @@ public class ProductClient {
     private static final String PRODUCT_URL =
             "http://product-service/products";
 
+    private static final String RESTORE_STOCK_URL =
+            "http://product-service/internal/stock/restore";
+
+    @Value("${internal.stock.secret}")
+    private String internalStockSecret;
+
+    // Get product details during checkout
     public Product getProduct(Long productId, String token) {
 
         try {
@@ -76,20 +84,33 @@ public class ProductClient {
         }
     }
 
-    // Restore stock during order cancellation
-    // Currently requires an ADMIN JWT.
-    public void increaseStock(
+    // Restore stock when an order is cancelled.
+    // Repeated calls with the same operationId must not
+    // increase stock more than once.
+    public void restoreStock(
+            String operationId,
             Long productId,
-            int quantity,
-            String token
+            int quantity
     ) {
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Internal-Secret", internalStockSecret);
+
+        RestoreStockRequest request = new RestoreStockRequest(
+                operationId,
+                productId,
+                quantity
+        );
+
+        HttpEntity<RestoreStockRequest> entity =
+                new HttpEntity<>(request, headers);
 
         try {
             restTemplate.exchange(
-                    PRODUCT_URL + "/" + productId
-                            + "/increase-stock?quantity=" + quantity,
+                    RESTORE_STOCK_URL,
                     HttpMethod.PUT,
-                    authenticatedRequest(token),
+                    entity,
                     Void.class
             );
 
@@ -100,11 +121,20 @@ public class ProductClient {
         }
     }
 
+    // Attach customer/admin JWT for existing endpoints
     private HttpEntity<Void> authenticatedRequest(String token) {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
 
         return new HttpEntity<>(headers);
+    }
+
+    // JSON request sent to Product Service
+    private record RestoreStockRequest(
+            String operationId,
+            Long productId,
+            int quantity
+    ) {
     }
 }

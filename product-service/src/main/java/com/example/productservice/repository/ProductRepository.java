@@ -11,11 +11,17 @@ import org.springframework.data.repository.query.Param;
 public interface ProductRepository
         extends JpaRepository<Product, Long> {
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    // Reduce stock only if the product is active
+    // and sufficient stock is available.
+    @Modifying(
+            clearAutomatically = true,
+            flushAutomatically = true
+    )
     @Query("""
         UPDATE Product p
         SET p.quantity = p.quantity - :quantity
         WHERE p.id = :productId
+          AND p.active = true
           AND p.quantity >= :quantity
         """)
     int reduceStockIfAvailable(
@@ -23,7 +29,12 @@ public interface ProductRepository
             @Param("quantity") int quantity
     );
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    // Increase stock when an order is cancelled.
+    // Inactive products can also have their stock restored.
+    @Modifying(
+            clearAutomatically = true,
+            flushAutomatically = true
+    )
     @Query("""
         UPDATE Product p
         SET p.quantity = p.quantity + :quantity
