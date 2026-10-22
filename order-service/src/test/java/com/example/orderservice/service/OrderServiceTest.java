@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -41,6 +42,9 @@ class OrderServiceTest {
     @Mock
     private UserClient userClient;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     @InjectMocks
     private OrderService orderService;
 
@@ -57,6 +61,7 @@ class OrderServiceTest {
 
     @Test
     void getMyOrdersReturnsOnlyCustomerOrders() {
+
         when(orderRepository.findByUserIdOrderByCreatedAtDesc(5L))
                 .thenReturn(List.of(order));
 
@@ -72,6 +77,7 @@ class OrderServiceTest {
 
     @Test
     void getMyOrderReturnsMatchingOrder() {
+
         when(orderRepository.findByIdAndUserId(1L, 5L))
                 .thenReturn(Optional.of(order));
 
@@ -84,6 +90,7 @@ class OrderServiceTest {
 
     @Test
     void getMyOrderRejectsAnotherUsersOrder() {
+
         when(orderRepository.findByIdAndUserId(1L, 6L))
                 .thenReturn(Optional.empty());
 
@@ -95,6 +102,7 @@ class OrderServiceTest {
 
     @Test
     void checkoutRejectsMissingCart() {
+
         when(cartRepository.findByUserIdForUpdate(5L))
                 .thenReturn(Optional.empty());
 
@@ -108,6 +116,7 @@ class OrderServiceTest {
 
     @Test
     void checkoutRejectsEmptyCart() {
+
         Cart cart = new Cart();
         cart.setUserId(5L);
 
@@ -124,6 +133,7 @@ class OrderServiceTest {
 
     @Test
     void checkoutCreatesOrderAndClearsCart() {
+
         Cart cart = new Cart();
         cart.setId(10L);
         cart.setUserId(5L);
@@ -167,11 +177,13 @@ class OrderServiceTest {
 
         assertEquals(1L, result.id());
         assertEquals(5L, result.userId());
+
         assertEquals(
                 0,
                 result.totalAmount()
                         .compareTo(BigDecimal.valueOf(1000))
         );
+
         assertEquals(1, result.items().size());
         assertEquals("Chennai", result.deliveryAddress().city());
         assertTrue(cart.getItems().isEmpty());
@@ -182,6 +194,7 @@ class OrderServiceTest {
 
     @Test
     void checkoutRejectsInsufficientStock() {
+
         Cart cart = new Cart();
         cart.setUserId(5L);
 
@@ -222,7 +235,8 @@ class OrderServiceTest {
 
     @Test
     void updateStatusFromPlacedToConfirmed() {
-        when(orderRepository.findById(1L))
+
+        when(orderRepository.findByIdForUpdate(1L))
                 .thenReturn(Optional.of(order));
 
         when(orderRepository.save(any(OrderEntity.class)))
@@ -234,11 +248,14 @@ class OrderServiceTest {
                 );
 
         assertEquals(OrderStatus.CONFIRMED, result.status());
+
+        verify(orderRepository).save(order);
     }
 
     @Test
     void rejectInvalidStatusTransition() {
-        when(orderRepository.findById(1L))
+
+        when(orderRepository.findByIdForUpdate(1L))
                 .thenReturn(Optional.of(order));
 
         assertThrows(
@@ -253,9 +270,10 @@ class OrderServiceTest {
 
     @Test
     void deliveredOrderCannotChangeStatus() {
+
         order.setStatus(OrderStatus.DELIVERED);
 
-        when(orderRepository.findById(1L))
+        when(orderRepository.findByIdForUpdate(1L))
                 .thenReturn(Optional.of(order));
 
         assertThrows(
@@ -264,11 +282,14 @@ class OrderServiceTest {
                         1L, OrderStatus.CANCELLED
                 )
         );
+
+        verify(orderRepository, never()).save(any());
     }
 
     @Test
     void updateMissingOrderThrowsNotFound() {
-        when(orderRepository.findById(99L))
+
+        when(orderRepository.findByIdForUpdate(99L))
                 .thenReturn(Optional.empty());
 
         assertThrows(
