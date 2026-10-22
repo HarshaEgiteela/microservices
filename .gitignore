@@ -8,3 +8,15 @@ docker-compose.local.yml
 # IntelliJ
 .idea/
 *.iml
+
+# Deployment archives
+*.zip
+
+# Java build outputs
+target/
+*.jar
+
+# Angular build outputs
+node_modules/
+dist/
+.angular/

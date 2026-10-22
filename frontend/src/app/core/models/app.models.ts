@@ -1,3 +1,4 @@
+
 export interface User {
   id?: number;
   name: string;
@@ -42,12 +43,33 @@ export type OrderStatus =
   | 'DELIVERED'
   | 'CANCELLED';
 
-export interface Order {
-  id?: number;
-  userId: number;
+export interface OrderItem {
   productId: number;
+  productName: string;
   quantity: number;
+  unitPrice: number;
+  subtotal: number;
+}
+
+export interface OrderDeliveryAddress {
+  recipientName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
+export interface Order {
+  id: number;
+  userId: number;
   status: OrderStatus;
+  createdAt: string;
+  items: OrderItem[];
+  totalAmount: number;
+  deliveryAddress: OrderDeliveryAddress | null;
 }
 
 export interface CartItem {

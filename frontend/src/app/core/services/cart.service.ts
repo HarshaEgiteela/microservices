@@ -1,6 +1,16 @@
 
-import { Injectable, computed, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import {
+  Injectable,
+  computed,
+  inject,
+  signal
+} from '@angular/core';
+
+import {
+  HttpClient,
+  HttpErrorResponse
+} from '@angular/common/http';
+
 import { finalize } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import { AuthService } from './auth.service';
@@ -16,7 +26,7 @@ export interface BackendCartItem {
 }
 
 export interface BackendCart {
-  cartId: number;
+  cartId: number | null;
   userId: number;
   items: BackendCartItem[];
   totalAmount: number;
@@ -24,23 +34,32 @@ export interface BackendCart {
 
 @Injectable({ providedIn: 'root' })
 export class CartService {
-  private http = inject(HttpClient);
-  private auth = inject(AuthService);
-  private url = `${API_BASE_URL}/cart`;
+  private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
+  private readonly url = `${API_BASE_URL}/cart`;
 
-  private items = signal<BackendCartItem[]>([]);
+  private readonly items = signal<BackendCartItem[]>([]);
+
   readonly cartItems = this.items.asReadonly();
 
   readonly count = computed(() =>
-    this.items().reduce((sum, item) => sum + item.quantity, 0)
+    this.items().reduce(
+      (sum, item) => sum + item.quantity,
+      0
+    )
   );
 
   readonly total = computed(() =>
-    this.items().reduce((sum, item) => sum + item.subtotal, 0)
+    this.items().reduce(
+      (sum, item) => sum + item.subtotal,
+      0
+    )
   );
 
   readonly loading = signal(false);
   readonly error = signal('');
+
+  private generation = 0;
 
   constructor() {
     localStorage.removeItem('shopease-cart');
@@ -50,42 +69,90 @@ export class CartService {
     }
   }
 
+  private getErrorMessage(
+    err: HttpErrorResponse,
+    fallback: string
+  ): string {
+    console.error('Cart API error:', err);
+
+    if (typeof err.error === 'string' && err.error.trim()) {
+      return err.error;
+    }
+
+    if (err.error?.message) {
+      return err.error.message;
+    }
+
+    return `${fallback} (HTTP ${err.status || 'Network Error'})`;
+  }
+
   load(): void {
     if (!this.auth.hasToken()) {
       this.reset();
       return;
     }
 
+    const generation = this.generation;
+
     this.loading.set(true);
     this.error.set('');
 
     this.http.get<BackendCart>(this.url)
-      .pipe(finalize(() => this.loading.set(false)))
+      .pipe(finalize(() => {
+        if (generation === this.generation) {
+          this.loading.set(false);
+        }
+      }))
       .subscribe({
-        next: cart => this.items.set(cart.items),
-        error: () => {
+        next: cart => {
+          if (generation !== this.generation) return;
+
+          this.items.set(cart.items ?? []);
+        },
+        error: (err: HttpErrorResponse) => {
+          if (generation !== this.generation) return;
+
           this.items.set([]);
-          this.error.set('Unable to load your cart.');
+          this.error.set(
+            this.getErrorMessage(err, 'Unable to load your cart.')
+          );
         }
       });
   }
 
   add(product: Product): void {
-    if (product.id == null || product.quantity <= 0) return;
+    if (product.id == null || product.quantity <= 0) {
+      return;
+    }
 
     if (!this.auth.hasToken()) {
       this.error.set('Please log in to add products.');
       return;
     }
 
+    const generation = this.generation;
+
     this.error.set('');
 
-    this.http.post<BackendCart>(`${this.url}/items`, {
-      productId: product.id,
-      quantity: 1
-    }).subscribe({
-      next: cart => this.items.set(cart.items),
-      error: () => this.error.set('Unable to add product.')
+    this.http.post<BackendCart>(
+      `${this.url}/items`,
+      {
+        productId: product.id,
+        quantity: 1
+      }
+    ).subscribe({
+      next: cart => {
+        if (generation !== this.generation) return;
+
+        this.items.set(cart.items ?? []);
+      },
+      error: (err: HttpErrorResponse) => {
+        if (generation !== this.generation) return;
+
+        this.error.set(
+          this.getErrorMessage(err, 'Unable to add product.')
+        );
+      }
     });
   }
 
@@ -97,32 +164,77 @@ export class CartService {
       return;
     }
 
+    const generation = this.generation;
+
+    this.error.set('');
+
     this.http.put<BackendCart>(
       `${this.url}/items/${itemId}`,
       { quantity: Math.floor(quantity) }
     ).subscribe({
-      next: cart => this.items.set(cart.items),
-      error: () => this.error.set('Unable to update quantity.')
+      next: cart => {
+        if (generation !== this.generation) return;
+
+        this.items.set(cart.items ?? []);
+      },
+      error: (err: HttpErrorResponse) => {
+        if (generation !== this.generation) return;
+
+        this.error.set(
+          this.getErrorMessage(err, 'Unable to update quantity.')
+        );
+      }
     });
   }
 
   remove(itemId: number): void {
-    this.http.delete<void>(`${this.url}/items/${itemId}`)
-      .subscribe({
-        next: () => this.load(),
-        error: () => this.error.set('Unable to remove item.')
-      });
+    const generation = this.generation;
+
+    this.error.set('');
+
+    this.http.delete<void>(
+      `${this.url}/items/${itemId}`
+    ).subscribe({
+      next: () => {
+        if (generation !== this.generation) return;
+
+        this.load();
+      },
+      error: (err: HttpErrorResponse) => {
+        if (generation !== this.generation) return;
+
+        this.error.set(
+          this.getErrorMessage(err, 'Unable to remove item.')
+        );
+      }
+    });
   }
 
   clear(): void {
+    const generation = this.generation;
+
+    this.error.set('');
+
     this.http.delete<void>(this.url).subscribe({
-      next: () => this.items.set([]),
-      error: () => this.error.set('Unable to clear cart.')
+      next: () => {
+        if (generation !== this.generation) return;
+
+        this.items.set([]);
+      },
+      error: (err: HttpErrorResponse) => {
+        if (generation !== this.generation) return;
+
+        this.error.set(
+          this.getErrorMessage(err, 'Unable to clear cart.')
+        );
+      }
     });
   }
 
   reset(): void {
+    this.generation++;
     this.items.set([]);
+    this.loading.set(false);
     this.error.set('');
   }
 }

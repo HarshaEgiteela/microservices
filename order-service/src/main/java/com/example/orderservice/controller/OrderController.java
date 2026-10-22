@@ -31,6 +31,11 @@ public class OrderController {
     ) {
         Long userId = (Long) authentication.getPrincipal();
 
+        if (!authorization.startsWith("Bearer ")
+                || authorization.length() <= 7) {
+            throw new IllegalArgumentException("Valid Bearer token is required");
+        }
+
         String token = authorization.substring(7);
 
         return ResponseEntity

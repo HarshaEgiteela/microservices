@@ -1,5 +1,6 @@
 
 import { Component, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
 import { OrderService } from '../../core/services/order.service';
@@ -12,15 +13,16 @@ import { Order } from '../../core/models/app.models';
   standalone: true,
   imports: [
     RouterLink,
-    LoadingComponent
+    LoadingComponent,
+    DatePipe
   ],
   templateUrl: './orders.html'
 })
 export class OrdersComponent {
 
-  orders = signal<Order[]>([]);
-  loading = signal(true);
-  error = signal('');
+  readonly orders = signal<Order[]>([]);
+  readonly loading = signal(true);
+  readonly error = signal('');
 
   private readonly service = inject(OrderService);
   private readonly auth = inject(AuthService);
@@ -33,8 +35,6 @@ export class OrdersComponent {
     this.loading.set(true);
     this.error.set('');
 
-    // Admin sees all orders.
-    // Customer sees only their own orders.
     const request = this.auth.isAdmin()
       ? this.service.getAll()
       : this.service.getMyOrders();

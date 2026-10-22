@@ -9,83 +9,159 @@
     ← Continue shopping
   </a>
 
+  <!-- Error Message -->
   @if (error() || cart.error()) {
-  <p class="mt-5 rounded-xl bg-red-50 p-4 text-red-700">
+  <p
+    role="alert"
+    class="mt-5 rounded-xl bg-red-50 p-4 text-red-700"
+  >
     {{ error() || cart.error() }}
   </p>
   }
 
+  <!-- Success Message -->
   @if (message()) {
-  <p class="mt-5 rounded-xl bg-green-50 p-4 text-green-700">
+  <p
+    role="status"
+    class="mt-5 rounded-xl bg-green-50 p-4 text-green-700"
+  >
     {{ message() }}
   </p>
   }
 
+  <!-- Loading -->
   @if (cart.loading()) {
   <p class="mt-8">Loading cart...</p>
+
   } @else if (!cart.cartItems().length) {
+
+  <!-- Empty Cart -->
   <div class="mt-8 rounded-2xl border p-8 text-center">
-    Your cart is empty.
+    <p class="text-lg font-semibold text-gray-700">
+      Your cart is empty.
+    </p>
+
+    <a
+      routerLink="/"
+      class="mt-4 inline-block rounded-xl bg-blue-700 px-5 py-2.5 font-semibold text-white"
+    >
+      Browse Products
+    </a>
   </div>
+
   } @else {
 
   <div class="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
 
+    <!-- Left Column -->
     <div class="space-y-6">
 
+      <!-- Cart Items -->
       <div class="space-y-3">
-        @for (item of cart.cartItems(); track item.itemId) {
-        <article class="flex flex-wrap items-center gap-4 rounded-2xl border bg-white p-5">
 
-          <div class="flex-1">
-            <h3 class="font-bold">{{ item.productName }}</h3>
-            <p class="text-gray-500">
+        @for (item of cart.cartItems(); track item.itemId) {
+
+        <article
+          class="flex flex-wrap items-center gap-4 rounded-2xl border bg-white p-5"
+        >
+
+          <div class="min-w-0 flex-1">
+            <h3 class="font-bold text-gray-900">
+              {{ item.productName }}
+            </h3>
+
+            <p class="mt-1 text-sm text-gray-500">
               ₹{{ item.unitPrice }} each
             </p>
           </div>
 
-          <input
-            type="number"
-            min="1"
-            [value]="item.quantity"
-            (change)="update(item.itemId, $any($event.target).value)"
-            class="w-20 rounded-lg border p-2"/>
+          <!-- Quantity Controls -->
+          <div
+            class="flex items-center overflow-hidden rounded-xl border border-blue-200 bg-blue-50"
+          >
 
-          <strong>₹{{ item.subtotal }}</strong>
+            <button
+              type="button"
+              (click)="decrease(item.itemId, item.quantity)"
+              [disabled]="placing()"
+              class="flex h-10 w-10 items-center justify-center text-xl font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+              [attr.aria-label]="'Decrease quantity of ' + item.productName"
+            >
+              −
+            </button>
 
-          <button type="button"
-                  (click)="remove(item.itemId)"
-                  class="text-red-600">
+            <span
+              class="min-w-8 px-1 text-center text-sm font-extrabold text-blue-900"
+            >
+                  {{ item.quantity }}
+                </span>
+
+            <button
+              type="button"
+              (click)="increase(item.itemId, item.quantity)"
+              [disabled]="placing()"
+              class="flex h-10 w-10 items-center justify-center text-xl font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+              [attr.aria-label]="'Increase quantity of ' + item.productName"
+            >
+              +
+            </button>
+
+          </div>
+
+          <!-- Subtotal -->
+          <strong class="text-lg text-gray-900">
+            ₹{{ item.subtotal }}
+          </strong>
+
+          <!-- Remove -->
+          <button
+            type="button"
+            (click)="remove(item.itemId)"
+            [disabled]="placing()"
+            class="font-semibold text-red-600 hover:text-red-700 disabled:opacity-50"
+          >
             Remove
           </button>
+
         </article>
+
         }
+
       </div>
 
+      <!-- Delivery Address -->
       <div class="rounded-2xl border bg-white p-6">
 
-        <div class="flex items-center justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-xl font-bold">
             Delivery Address
           </h2>
 
-          <a routerLink="/profile"
-             class="font-semibold text-blue-700">
+          <a
+            routerLink="/profile"
+            class="font-semibold text-blue-700"
+          >
             + Manage Addresses
           </a>
         </div>
 
         @if (loadingAddresses()) {
+
         <p class="mt-4">Loading addresses...</p>
+
         } @else if (!addresses().length) {
+
         <p class="mt-4 text-gray-600">
           No saved addresses. Add one before checkout.
         </p>
 
-        <a routerLink="/profile"
-           class="mt-3 inline-block rounded-xl bg-blue-700 px-4 py-2 text-white">
+        <a
+          routerLink="/profile"
+          class="mt-3 inline-block rounded-xl bg-blue-700 px-4 py-2 font-semibold text-white"
+        >
           Add Address
         </a>
+
         } @else {
 
         <div class="mt-5 space-y-3">
@@ -93,49 +169,72 @@
           @for (a of addresses(); track a.id) {
 
           <label
-            class="flex cursor-pointer gap-3 rounded-xl border p-4"
+            class="flex cursor-pointer gap-3 rounded-xl border p-4 transition"
             [class.border-blue-600]="selectedAddressId() === a.id"
-            [class.bg-blue-50]="selectedAddressId() === a.id">
+            [class.bg-blue-50]="selectedAddressId() === a.id"
+          >
 
             <input
               type="radio"
               name="deliveryAddress"
               [checked]="selectedAddressId() === a.id"
-              (change)="selectAddress(a.id)"/>
+              (change)="selectAddress(a.id)"
+              class="mt-1"
+            />
 
-            <div>
-              <p class="font-bold">
+            <div class="text-sm text-gray-700">
+
+              <p class="font-bold text-gray-900">
                 {{ a.label }}
+
                 @if (a.isDefault) {
-                <span class="text-xs text-green-700">
+                <span class="ml-1 text-xs text-green-700">
                           (Default)
                         </span>
                 }
               </p>
 
-              <p>{{ a.recipientName }} - {{ a.phone }}</p>
-              <p>{{ a.addressLine1 }}</p>
+              <p class="mt-2">
+                {{ a.recipientName }} - {{ a.phone }}
+              </p>
+
+              <p class="mt-1">
+                {{ a.addressLine1 }}
+              </p>
 
               @if (a.addressLine2) {
-              <p>{{ a.addressLine2 }}</p>
+              <p class="mt-1">{{ a.addressLine2 }}</p>
               }
 
-              <p>
+              <p class="mt-1">
                 {{ a.city }}, {{ a.state }} -
                 {{ a.postalCode }}
               </p>
-              <p>{{ a.country }}</p>
+
+              <p class="mt-1">{{ a.country }}</p>
+
             </div>
+
           </label>
+
           }
+
         </div>
+
         }
+
       </div>
+
     </div>
 
-    <aside class="h-fit rounded-2xl border bg-white p-6 shadow-sm">
+    <!-- Order Summary -->
+    <aside
+      class="h-fit rounded-2xl border bg-white p-6 shadow-sm"
+    >
 
-      <h2 class="text-xl font-bold">Order Summary</h2>
+      <h2 class="text-xl font-bold">
+        Order Summary
+      </h2>
 
       <div class="mt-5 flex justify-between">
         <span>Items</span>
@@ -144,6 +243,7 @@
 
       <div class="mt-4 flex justify-between border-t pt-4">
         <strong>Total</strong>
+
         <strong class="text-blue-700">
           ₹{{ cart.total() }}
         </strong>
@@ -152,12 +252,21 @@
       <button
         type="button"
         (click)="checkout()"
-        [disabled]="placing() || loadingAddresses() || selectedAddressId() === null"
-        class="mt-6 w-full rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white disabled:opacity-50">
+        [disabled]="
+            placing() ||
+            cart.loading() ||
+            loadingAddresses() ||
+            selectedAddressId() === null
+          "
+        class="mt-6 w-full rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+      >
         {{ placing() ? 'Placing Order...' : 'Place Order' }}
       </button>
 
     </aside>
+
   </div>
+
   }
+
 </section>

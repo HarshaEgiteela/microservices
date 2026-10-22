@@ -33,35 +33,56 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
+                        // Public endpoints
                         .requestMatchers(
                                 "/actuator/health",
                                 "/error"
                         ).permitAll()
 
+                        // Admin: service instance information
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/orders/instance"
                         ).hasRole("ADMIN")
 
+                        // Admin: update order status
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/orders/*/status"
                         ).hasRole("ADMIN")
 
+                        // Admin: cancel any eligible order
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/orders/*/cancel"
+                        ).hasRole("ADMIN")
+
+                        // Admin: view all orders
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/orders"
                         ).hasRole("ADMIN")
 
-                        .requestMatchers("/cart/**")
-                        .hasAnyRole("CUSTOMER", "ADMIN")
+                        // Customer or Admin: cancel own order
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/orders/my/*/cancel"
+                        ).hasAnyRole("CUSTOMER", "ADMIN")
 
+                        // Customer or Admin: cart operations
+                        .requestMatchers(
+                                "/cart",
+                                "/cart/**"
+                        ).hasAnyRole("CUSTOMER", "ADMIN")
+
+                        // Customer or Admin: checkout and own orders
                         .requestMatchers(
                                 "/orders/checkout",
                                 "/orders/my",
                                 "/orders/my/**"
                         ).hasAnyRole("CUSTOMER", "ADMIN")
 
+                        // Deny everything else
                         .anyRequest().denyAll()
                 )
 

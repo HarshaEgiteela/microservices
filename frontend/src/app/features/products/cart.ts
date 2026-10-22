@@ -1,12 +1,19 @@
 
 import {
-  Component, inject, OnInit, signal
+  Component,
+  inject,
+  OnInit,
+  signal
 } from '@angular/core';
+
 import { Router, RouterLink } from '@angular/router';
+
 import { CartService } from '../../core/services/cart.service';
 import { OrderService } from '../../core/services/order.service';
+
 import {
-  Address, AddressService
+  Address,
+  AddressService
 } from '../../core/services/address.service';
 
 @Component({
@@ -16,19 +23,20 @@ import {
   templateUrl: './cart.html'
 })
 export class CartComponent implements OnInit {
+
   readonly cart = inject(CartService);
 
-  private orders = inject(OrderService);
-  private addressService = inject(AddressService);
-  private router = inject(Router);
+  private readonly orders = inject(OrderService);
+  private readonly addressService = inject(AddressService);
+  private readonly router = inject(Router);
 
-  addresses = signal<Address[]>([]);
-  selectedAddressId = signal<number | null>(null);
+  readonly addresses = signal<Address[]>([]);
+  readonly selectedAddressId = signal<number | null>(null);
 
-  message = signal('');
-  error = signal('');
-  placing = signal(false);
-  loadingAddresses = signal(false);
+  readonly message = signal('');
+  readonly error = signal('');
+  readonly placing = signal(false);
+  readonly loadingAddresses = signal(false);
 
   ngOnInit(): void {
     this.cart.load();
@@ -37,22 +45,25 @@ export class CartComponent implements OnInit {
 
   loadAddresses(): void {
     this.loadingAddresses.set(true);
+    this.error.set('');
 
     this.addressService.getAll().subscribe({
       next: addresses => {
         this.addresses.set(addresses);
 
         const selected = addresses.find(
-          a => a.id === this.selectedAddressId()
+          address => address.id === this.selectedAddressId()
         );
 
-        const preferred = selected ??
-          addresses.find(a => a.isDefault) ??
+        const preferred =
+          selected ??
+          addresses.find(address => address.isDefault) ??
           addresses[0];
 
         this.selectedAddressId.set(preferred?.id ?? null);
         this.loadingAddresses.set(false);
       },
+
       error: () => {
         this.error.set('Unable to load delivery addresses.');
         this.loadingAddresses.set(false);
@@ -62,18 +73,39 @@ export class CartComponent implements OnInit {
 
   selectAddress(id: number): void {
     this.selectedAddressId.set(id);
+    this.error.set('');
   }
 
-  update(itemId: number, value: string): void {
-    this.cart.update(itemId, Number(value));
+  increase(itemId: number, quantity: number): void {
+    if (this.placing()) return;
+
+    this.cart.update(itemId, quantity + 1);
+  }
+
+  decrease(itemId: number, quantity: number): void {
+    if (this.placing()) return;
+
+    if (quantity <= 1) {
+      this.cart.remove(itemId);
+    } else {
+      this.cart.update(itemId, quantity - 1);
+    }
   }
 
   remove(itemId: number): void {
+    if (this.placing()) return;
+
     this.cart.remove(itemId);
   }
 
   checkout(): void {
-    if (this.placing() || this.cart.loading()) return;
+    if (
+      this.placing() ||
+      this.cart.loading() ||
+      this.loadingAddresses()
+    ) {
+      return;
+    }
 
     const addressId = this.selectedAddressId();
 
@@ -88,17 +120,23 @@ export class CartComponent implements OnInit {
     }
 
     this.error.set('');
+    this.message.set('');
     this.placing.set(true);
 
     this.orders.checkout(addressId).subscribe({
       next: () => {
         this.placing.set(false);
+
         this.cart.load();
+
         this.message.set('Order placed successfully.');
+
         this.router.navigate(['/orders']);
       },
+
       error: err => {
         this.placing.set(false);
+
         this.error.set(
           typeof err.error === 'string'
             ? err.error
