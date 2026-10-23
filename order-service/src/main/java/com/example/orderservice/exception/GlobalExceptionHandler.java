@@ -1,6 +1,9 @@
 
 package com.example.orderservice.exception;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -13,6 +16,9 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleNotFound(
@@ -48,9 +54,7 @@ public class GlobalExceptionHandler {
                 .body(Map.of("message", message));
     }
 
-    @ExceptionHandler({
-            ResourceAccessException.class
-    })
+    @ExceptionHandler(ResourceAccessException.class)
     public ResponseEntity<Map<String, String>> handleUnavailable(
             Exception ex
     ) {
@@ -78,6 +82,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleUnexpected(
             Exception ex
     ) {
+        log.error("Unexpected error occurred in Order Service", ex);
+
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of(
