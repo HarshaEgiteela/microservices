@@ -1,3 +1,6 @@
+
+# syntax=docker/dockerfile:1
+
 FROM maven:3.9-eclipse-temurin-21 AS build
 
 WORKDIR /app
@@ -5,7 +8,8 @@ WORKDIR /app
 COPY pom.xml .
 COPY src ./src
 
-RUN mvn clean package -DskipTests
+RUN --mount=type=cache,target=/root/.m2/repository \
+    mvn -B -ntp clean package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:21-jdk
 

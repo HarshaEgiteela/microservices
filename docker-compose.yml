@@ -1,12 +1,14 @@
+
 services:
 
-  # -------------------------
+  # =========================
   # Eureka Server
-  # -------------------------
+  # =========================
   eureka-server:
     image: harshaegiteela/eureka-server:latest
     container_name: eureka-server
     restart: unless-stopped
+
     ports:
       - "8761:8761"
 
@@ -20,15 +22,15 @@ services:
           cpus: "0.5"
 
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8761"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8761/actuator/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
 
-
-  # -------------------------
+  # =========================
   # User Service
-  # -------------------------
+  # =========================
   user-service:
     image: harshaegiteela/user-service:latest
     container_name: user-service
@@ -44,8 +46,8 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://microservices-db.c9igqemwszh9.ap-southeast-2.rds.amazonaws.com:3306/userdb
       SPRING_DATASOURCE_USERNAME: admin
-      SPRING_DATASOURCE_PASSWORD: ${RDS_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
+      SPRING_DATASOURCE_PASSWORD: ${RDS_PASSWORD:?Set RDS_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
 
     deploy:
@@ -55,15 +57,15 @@ services:
           cpus: "0.5"
 
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8081/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
 
-
-  # -------------------------
+  # =========================
   # Product Service
-  # -------------------------
+  # =========================
   product-service:
     image: harshaegiteela/product-service:latest
     container_name: product-service
@@ -79,9 +81,10 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://microservices-db.c9igqemwszh9.ap-southeast-2.rds.amazonaws.com:3306/productdb
       SPRING_DATASOURCE_USERNAME: admin
-      SPRING_DATASOURCE_PASSWORD: ${RDS_PASSWORD}
+      SPRING_DATASOURCE_PASSWORD: ${RDS_PASSWORD:?Set RDS_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      INTERNAL_STOCK_SECRET: ${INTERNAL_STOCK_SECRET:?Set INTERNAL_STOCK_SECRET in .env}
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
-      JWT_SECRET: ${JWT_SECRET}
 
     deploy:
       resources:
@@ -90,15 +93,15 @@ services:
           cpus: "0.5"
 
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8082/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8082/actuator/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
 
-
-  # -------------------------
+  # =========================
   # Order Service
-  # -------------------------
+  # =========================
   order-service:
     image: harshaegiteela/order-service:latest
     container_name: order-service
@@ -111,9 +114,10 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://microservices-db.c9igqemwszh9.ap-southeast-2.rds.amazonaws.com:3306/orderdb
       SPRING_DATASOURCE_USERNAME: admin
-      SPRING_DATASOURCE_PASSWORD: ${RDS_PASSWORD}
+      SPRING_DATASOURCE_PASSWORD: ${RDS_PASSWORD:?Set RDS_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      INTERNAL_STOCK_SECRET: ${INTERNAL_STOCK_SECRET:?Set INTERNAL_STOCK_SECRET in .env}
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
-      JWT_SECRET: ${JWT_SECRET}
 
     deploy:
       resources:
@@ -122,15 +126,15 @@ services:
           cpus: "0.5"
 
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8083/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/actuator/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
 
-
-  # -------------------------
+  # =========================
   # API Gateway
-  # -------------------------
+  # =========================
   api-gateway:
     image: harshaegiteela/api-gateway:latest
     container_name: api-gateway
@@ -153,7 +157,8 @@ services:
           cpus: "0.5"
 
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
