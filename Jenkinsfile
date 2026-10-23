@@ -9,18 +9,14 @@ pipeline {
 
     stages {
 
-        // =========================
         // 1. CHECKOUT
-        // =========================
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        // =========================
         // 2. MAVEN TESTS
-        // =========================
         stage('Test User Service') {
             steps {
                 dir('user-service') {
@@ -45,12 +41,9 @@ pipeline {
             }
         }
 
-        // =========================
         // 3. MAVEN BUILD
-        // =========================
         stage('Build Services') {
             steps {
-
                 dir('user-service') {
                     bat 'call mvnw.cmd -B -ntp package -DskipTests'
                 }
@@ -73,9 +66,7 @@ pipeline {
             }
         }
 
-        // =========================
         // 4. DOCKER BUILD & PUSH
-        // =========================
         stage('Docker Build and Push') {
             steps {
                 withCredentials([
@@ -85,14 +76,18 @@ pipeline {
                         passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
+
+                    // Docker Hub login
                     bat '''
                         @echo off
-
                         echo Logging into Docker Hub...
-
                         powershell -NoProfile -Command "$env:DOCKER_PASSWORD | docker login -u $env:DOCKER_USERNAME --password-stdin"
-
                         if errorlevel 1 exit /b 1
+                    '''
+
+                    // Build all five Docker images
+                    bat '''
+                        @echo off
 
                         echo Building User Service...
                         docker build -t %DOCKER_USERNAME%/user-service:latest ./user-service
@@ -113,44 +108,45 @@ pipeline {
                         echo Building Eureka Server...
                         docker build -t %DOCKER_USERNAME%/eureka-server:latest ./eureka-server
                         if errorlevel 1 exit /b 1
-
-                        echo Pushing User Service...
-                        docker push %DOCKER_USERNAME%/user-service:latest
-                        if errorlevel 1 exit /b 1
-
-                        echo Pushing Product Service...
-                        docker push %DOCKER_USERNAME%/product-service:latest
-                        if errorlevel 1 exit /b 1
-
-                        echo Pushing Order Service...
-                        docker push %DOCKER_USERNAME%/order-service:latest
-                        if errorlevel 1 exit /b 1
-
-                        echo Pushing API Gateway...
-                        docker push %DOCKER_USERNAME%/api-gateway:latest
-                        if errorlevel 1 exit /b 1
-
-                        echo Pushing Eureka Server...
-                        docker push %DOCKER_USERNAME%/eureka-server:latest
-                        if errorlevel 1 exit /b 1
-
-                        docker logout
-
-                        echo Docker images pushed successfully.
                     '''
+
+                    // Retry each Docker push up to 3 times
+                    script {
+                        def images = [
+                            'user-service',
+                            'product-service',
+                            'order-service',
+                            'api-gateway',
+                            'eureka-server'
+                        ]
+
+                        for (def image in images) {
+                            echo "Pushing ${image}..."
+
+                            retry(3) {
+                                bat """
+                                    @echo off
+                                    docker push %DOCKER_USERNAME%/${image}:latest
+                                    if errorlevel 1 exit /b 1
+                                """
+                            }
+
+                            echo "${image} pushed successfully."
+                        }
+                    }
+
+                    bat 'docker logout'
+                    echo 'All Docker images pushed successfully.'
                 }
             }
         }
 
-        // =========================
         // 5. DEPLOY TO AWS EC2
-        // =========================
         stage('Deploy to AWS EC2') {
             steps {
                 sshagent(['ec2-deploy-key']) {
                     bat '''
                         @echo off
-
                         ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ec2-user@16.178.17.40 "cd ~/microservices && docker-compose config --quiet && docker-compose pull && docker-compose up -d --wait --wait-timeout 300 && docker-compose ps"
                     '''
                 }
@@ -158,9 +154,7 @@ pipeline {
         }
     }
 
-    // =========================
     // 6. PIPELINE RESULT
-    // =========================
     post {
         success {
             echo 'Jenkins pipeline completed successfully.'
