@@ -90,7 +90,7 @@ pipeline {
 
                         echo Logging into Docker Hub...
 
-                        echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
+                        powershell -NoProfile -Command "$env:DOCKER_PASSWORD | docker login -u $env:DOCKER_USERNAME --password-stdin"
 
                         if errorlevel 1 exit /b 1
 
