@@ -147,7 +147,7 @@ pipeline {
                 sshagent(['ec2-deploy-key']) {
                     bat '''
                         @echo off
-                        ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ec2-user@16.178.17.40 "cd ~/microservices && docker-compose config --quiet && docker-compose pull && docker-compose up -d --wait --wait-timeout 300 && docker-compose ps"
+                        ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ec2-user@16.178.17.40 "cd ~/microservices && docker-compose config --quiet && docker-compose pull && docker-compose up -d --wait --wait-timeout 600 && docker-compose ps"
                     '''
                 }
             }
