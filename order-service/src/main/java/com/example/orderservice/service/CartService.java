@@ -10,7 +10,9 @@ import com.example.orderservice.entity.CartItem;
 import com.example.orderservice.exception.ResourceNotFoundException;
 import com.example.orderservice.repository.CartItemRepository;
 import com.example.orderservice.repository.CartRepository;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,6 +57,7 @@ public class CartService {
                 request.productId() <= 0 ||
                 request.quantity() == null ||
                 request.quantity() <= 0) {
+
             throw new IllegalArgumentException(
                     "Valid product ID and quantity are required"
             );
@@ -62,6 +65,12 @@ public class CartService {
 
         Product product =
                 productClient.getProduct(request.productId(), token);
+
+        if (product.getQuantity() <= 0) {
+            throw new IllegalArgumentException(
+                    "This product is out of stock"
+            );
+        }
 
         Cart cart = getOrCreateCart(userId);
 
@@ -121,18 +130,37 @@ public class CartService {
                         )
                 );
 
-        Product product =
-                productClient.getProduct(item.getProductId(), token);
+        int currentQuantity = item.getQuantity();
 
-        if (quantity > product.getQuantity()) {
-            throw new IllegalArgumentException(
-                    "Insufficient stock. Available: "
-                            + product.getQuantity()
-            );
+        // Allow customers to reduce their cart quantity
+        // even if the new quantity still exceeds stock.
+        //
+        // Example:
+        // Cart quantity = 5
+        // Available stock = 3
+        //
+        // 5 -> 4 : allowed
+        // 4 -> 3 : allowed
+        // 3 -> 4 : rejected
+
+        if (quantity > currentQuantity) {
+
+            Product product =
+                    productClient.getProduct(
+                            item.getProductId(),
+                            token
+                    );
+
+            if (quantity > product.getQuantity()) {
+                throw new IllegalArgumentException(
+                        "Insufficient stock. Available: "
+                                + product.getQuantity()
+                );
+            }
         }
 
         item.setQuantity(quantity);
-        cartItemRepository.save(item);
+        cartItemRepository.saveAndFlush(item);
 
         return buildResponse(item.getCart(), token);
     }
