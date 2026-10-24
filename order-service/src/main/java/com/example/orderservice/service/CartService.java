@@ -160,7 +160,7 @@ public class CartService {
         }
 
         item.setQuantity(quantity);
-        cartItemRepository.saveAndFlush(item);
+        cartItemRepository.save(item);
 
         return buildResponse(item.getCart(), token);
     }
