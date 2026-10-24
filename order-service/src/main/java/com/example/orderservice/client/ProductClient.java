@@ -84,8 +84,8 @@ public class ProductClient {
         }
     }
 
-    // Restore stock when an order is cancelled.
-    // Repeated calls with the same operationId must not
+    // Restore stock when an order is cancelled
+    // Repeated calls with the same operationId should not
     // increase stock more than once.
     public void restoreStock(
             String operationId,
@@ -109,7 +109,7 @@ public class ProductClient {
         try {
             restTemplate.exchange(
                     RESTORE_STOCK_URL,
-                    HttpMethod.PUT,
+                    HttpMethod.POST, // FIXED: matches @PostMapping
                     entity,
                     Void.class
             );
