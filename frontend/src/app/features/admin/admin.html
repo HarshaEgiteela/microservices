@@ -62,16 +62,15 @@
 
   <div class="mt-10 grid gap-8 lg:grid-cols-[340px_1fr]">
 
-    <!-- Product Form -->
+    <!-- Add Product Form -->
     <section class="h-fit rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
 
       <h2 class="text-xl font-bold">
-        {{ editingId !== null ? 'Edit product' : 'Add product' }}
+        Add product
       </h2>
 
       <div class="mt-5 space-y-4">
 
-        <!-- Product Name -->
         <input
           [(ngModel)]="form.name"
           type="text"
@@ -79,7 +78,6 @@
           class="w-full rounded-xl border border-gray-300 px-4 py-3"
         />
 
-        <!-- Product Price -->
         <input
           [(ngModel)]="form.price"
           type="number"
@@ -89,7 +87,6 @@
           class="w-full rounded-xl border border-gray-300 px-4 py-3"
         />
 
-        <!-- Product Quantity -->
         <input
           [(ngModel)]="form.quantity"
           type="number"
@@ -99,7 +96,6 @@
           class="w-full rounded-xl border border-gray-300 px-4 py-3"
         />
 
-        <!-- Product Description -->
         <textarea
           [(ngModel)]="form.description"
           rows="4"
@@ -107,15 +103,14 @@
           class="w-full rounded-xl border border-gray-300 px-4 py-3"
         ></textarea>
 
-        <!-- Action Buttons -->
         <div class="flex gap-2">
 
           <button
             type="button"
             (click)="saveProduct()"
-            class="flex-1 rounded-xl bg-blue-700 px-4 py-3 font-semibold text-white transition hover:bg-blue-800"
+            class="flex-1 rounded-xl bg-blue-700 px-4 py-3 font-semibold text-white hover:bg-blue-800"
           >
-            {{ editingId !== null ? 'Update' : 'Create' }}
+            Create
           </button>
 
           <button
@@ -258,3 +253,137 @@
   </div>
 
 </section>
+
+<!-- Edit Product Popup: Full-screen overlay -->
+@if (showEditPopup) {
+
+<div
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+  (click)="closeEditPopup()"
+>
+
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="edit-product-title"
+    class="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+    (click)="$event.stopPropagation()"
+  >
+
+    <!-- Popup Header -->
+    <div class="flex items-center justify-between">
+
+      <h2
+        id="edit-product-title"
+        class="text-2xl font-bold text-gray-900"
+      >
+        Edit Product
+      </h2>
+
+      <button
+        type="button"
+        (click)="closeEditPopup()"
+        [disabled]="saving"
+        aria-label="Close edit popup"
+        class="rounded-lg px-3 py-1 text-2xl text-gray-500 hover:bg-gray-100"
+      >
+        &times;
+      </button>
+
+    </div>
+
+    <!-- Product Fields -->
+    <div class="mt-6 space-y-4">
+
+      <div>
+        <label class="mb-1 block text-sm font-semibold">
+          Product Name
+        </label>
+
+        <input
+          [(ngModel)]="editForm.name"
+          type="text"
+          placeholder="Enter product name"
+          class="w-full rounded-xl border border-gray-300 px-4 py-3"
+        />
+      </div>
+
+      <div>
+        <label class="mb-1 block text-sm font-semibold">
+          Price
+        </label>
+
+        <input
+          [(ngModel)]="editForm.price"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Enter price"
+          class="w-full rounded-xl border border-gray-300 px-4 py-3"
+        />
+      </div>
+
+      <div>
+        <label class="mb-1 block text-sm font-semibold">
+          Quantity
+        </label>
+
+        <input
+          [(ngModel)]="editForm.quantity"
+          type="number"
+          min="0"
+          step="1"
+          placeholder="Enter quantity"
+          class="w-full rounded-xl border border-gray-300 px-4 py-3"
+        />
+      </div>
+
+      <div>
+        <label class="mb-1 block text-sm font-semibold">
+          Description
+        </label>
+
+        <textarea
+          [(ngModel)]="editForm.description"
+          rows="4"
+          placeholder="Enter description"
+          class="w-full rounded-xl border border-gray-300 px-4 py-3"
+        ></textarea>
+      </div>
+
+      @if (editError) {
+      <p class="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+        {{ editError }}
+      </p>
+      }
+
+    </div>
+
+    <!-- Popup Actions -->
+    <div class="mt-6 flex justify-end gap-3">
+
+      <button
+        type="button"
+        (click)="closeEditPopup()"
+        [disabled]="saving"
+        class="rounded-xl border border-gray-300 px-5 py-3 font-semibold hover:bg-gray-50"
+      >
+        Cancel
+      </button>
+
+      <button
+        type="button"
+        (click)="updateProduct()"
+        [disabled]="saving"
+        class="rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
+      >
+        {{ saving ? 'Saving...' : 'Save Changes' }}
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+}

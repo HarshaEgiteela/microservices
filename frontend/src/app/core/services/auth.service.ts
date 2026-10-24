@@ -28,15 +28,19 @@ export class AuthService {
 
   constructor(private readonly http: HttpClient) {}
 
+  // Login
   login(request: LoginRequest): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(
       `${API_BASE_URL}/users/login`,
       request
     ).pipe(
-      tap(response => this.storeAuth(response))
+      tap(response => {
+        this.storeAuth(response);
+      })
     );
   }
 
+  // Register
   register(request: RegisterRequest): Observable<string> {
     return this.http.post(
       `${API_BASE_URL}/users`,
@@ -45,15 +49,20 @@ export class AuthService {
     );
   }
 
+  // Logout
   logout(): void {
+
+    // Remove authentication details.
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.roleKey);
     localStorage.removeItem(this.userIdKey);
 
+    // Update authentication signals.
     this.tokenState.set(null);
     this.roleState.set(null);
   }
 
+  // Authentication status
   hasToken(): boolean {
     return !!this.tokenState();
   }
@@ -62,6 +71,7 @@ export class AuthService {
     return this.tokenState();
   }
 
+  // Role
   getRole(): string | null {
     return this.roleState();
   }
@@ -70,7 +80,9 @@ export class AuthService {
     return this.roleState() === 'ADMIN';
   }
 
+  // Logged-in user ID
   getUserId(): number | null {
+
     const value = localStorage.getItem(this.userIdKey);
 
     if (!value) {
@@ -82,12 +94,16 @@ export class AuthService {
     return Number.isFinite(id) ? id : null;
   }
 
+  // Store authentication response
   private storeAuth(response: AuthResponse): void {
 
     const token = response.token ?? response.jwt;
     const role = response.role ?? response.user?.role;
+
     const userId =
-      response.userId ?? response.id ?? response.user?.id;
+      response.userId ??
+      response.id ??
+      response.user?.id;
 
     if (token) {
       localStorage.setItem(this.tokenKey, token);

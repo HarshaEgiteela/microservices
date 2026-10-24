@@ -9,17 +9,15 @@
     ← Continue shopping
   </a>
 
-  <!-- Error Message -->
-  @if (error() || cart.error()) {
+  @if (error()) {
   <p
     role="alert"
     class="mt-5 rounded-xl bg-red-50 p-4 text-red-700"
   >
-    {{ error() || cart.error() }}
+    {{ error() }}
   </p>
   }
 
-  <!-- Success Message -->
   @if (message()) {
   <p
     role="status"
@@ -29,14 +27,20 @@
   </p>
   }
 
-  <!-- Loading -->
-  @if (cart.loading()) {
+  @if (checkingStock()) {
+  <p class="mt-4 text-sm text-blue-700">
+    Checking latest product availability...
+  </p>
+  }
+
+  @if (cart.loading() && !cart.cartItems().length) {
+
   <p class="mt-8">Loading cart...</p>
 
   } @else if (!cart.cartItems().length) {
 
-  <!-- Empty Cart -->
   <div class="mt-8 rounded-2xl border p-8 text-center">
+
     <p class="text-lg font-semibold text-gray-700">
       Your cart is empty.
     </p>
@@ -47,81 +51,115 @@
     >
       Browse Products
     </a>
+
   </div>
 
   } @else {
 
   <div class="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
 
-    <!-- Left Column -->
     <div class="space-y-6">
 
-      <!-- Cart Items -->
       <div class="space-y-3">
 
         @for (item of cart.cartItems(); track item.itemId) {
 
         <article
-          class="flex flex-wrap items-center gap-4 rounded-2xl border bg-white p-5"
+          class="rounded-2xl border bg-white p-5"
+          [class.border-red-300]="stockWarnings()[item.itemId]"
         >
 
-          <div class="min-w-0 flex-1">
-            <h3 class="font-bold text-gray-900">
-              {{ item.productName }}
-            </h3>
+          <div class="flex flex-wrap items-center gap-4">
 
-            <p class="mt-1 text-sm text-gray-500">
-              ₹{{ item.unitPrice }} each
-            </p>
-          </div>
+            <div class="min-w-0 flex-1">
 
-          <!-- Quantity Controls -->
-          <div
-            class="flex items-center overflow-hidden rounded-xl border border-blue-200 bg-blue-50"
-          >
+              <h3 class="font-bold text-gray-900">
+                {{ item.productName }}
+              </h3>
+
+              <p class="mt-1 text-sm text-gray-500">
+                ₹{{ item.unitPrice }} each
+              </p>
+
+            </div>
+
+            <div
+              class="flex items-center overflow-hidden rounded-xl border border-blue-200 bg-blue-50"
+            >
+
+              <button
+                type="button"
+                (click)="decrease(item.itemId, item.quantity)"
+                [disabled]="
+                      placing() ||
+                      checkingStock() ||
+                      unavailableItems().includes(item.itemId)
+                    "
+                class="flex h-10 w-10 items-center justify-center text-xl font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                [attr.aria-label]="'Decrease quantity of ' + item.productName"
+              >
+                −
+              </button>
+
+              <span
+                class="min-w-8 px-1 text-center text-sm font-extrabold text-blue-900"
+              >
+                    {{ item.quantity }}
+                  </span>
+
+              <button
+                type="button"
+                (click)="increase(item.itemId, item.quantity)"
+                [disabled]="
+                      placing() ||
+                      checkingStock() ||
+                      unavailableItems().includes(item.itemId) ||
+                      (stockLimits()[item.itemId] !== undefined &&
+                       item.quantity >= stockLimits()[item.itemId])
+                    "
+                class="flex h-10 w-10 items-center justify-center text-xl font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                [attr.aria-label]="'Increase quantity of ' + item.productName"
+              >
+                +
+              </button>
+
+            </div>
+
+            <strong class="text-lg text-gray-900">
+              ₹{{ item.subtotal }}
+            </strong>
 
             <button
               type="button"
-              (click)="decrease(item.itemId, item.quantity)"
-              [disabled]="placing()"
-              class="flex h-10 w-10 items-center justify-center text-xl font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-              [attr.aria-label]="'Decrease quantity of ' + item.productName"
+              (click)="remove(item.itemId)"
+              [disabled]="placing() || checkingStock()"
+              class="font-semibold text-red-600 hover:text-red-700 disabled:opacity-50"
             >
-              −
-            </button>
-
-            <span
-              class="min-w-8 px-1 text-center text-sm font-extrabold text-blue-900"
-            >
-                  {{ item.quantity }}
-                </span>
-
-            <button
-              type="button"
-              (click)="increase(item.itemId, item.quantity)"
-              [disabled]="placing()"
-              class="flex h-10 w-10 items-center justify-center text-xl font-bold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-              [attr.aria-label]="'Increase quantity of ' + item.productName"
-            >
-              +
+              Remove
             </button>
 
           </div>
 
-          <!-- Subtotal -->
-          <strong class="text-lg text-gray-900">
-            ₹{{ item.subtotal }}
-          </strong>
+          @if (stockWarnings()[item.itemId]) {
 
-          <!-- Remove -->
-          <button
-            type="button"
-            (click)="remove(item.itemId)"
-            [disabled]="placing()"
-            class="font-semibold text-red-600 hover:text-red-700 disabled:opacity-50"
+          <p
+            role="alert"
+            class="mt-3 rounded-lg px-3 py-2 text-sm font-semibold"
+            [class.bg-red-50]="unavailableItems().includes(item.itemId)"
+            [class.text-red-700]="unavailableItems().includes(item.itemId)"
+            [class.bg-orange-50]="!unavailableItems().includes(item.itemId)"
+            [class.text-orange-700]="!unavailableItems().includes(item.itemId)"
           >
-            Remove
-          </button>
+            ⚠ {{ stockWarnings()[item.itemId] }}
+          </p>
+
+          } @else if (!checkingStock()) {
+
+          <p class="mt-3 text-sm font-medium text-green-700">
+            ✓ In stock
+          </p>
+
+          }
 
         </article>
 
@@ -129,10 +167,10 @@
 
       </div>
 
-      <!-- Delivery Address -->
       <div class="rounded-2xl border bg-white p-6">
 
         <div class="flex flex-wrap items-center justify-between gap-3">
+
           <h2 class="text-xl font-bold">
             Delivery Address
           </h2>
@@ -143,6 +181,7 @@
           >
             + Manage Addresses
           </a>
+
         </div>
 
         @if (loadingAddresses()) {
@@ -203,7 +242,9 @@
               </p>
 
               @if (a.addressLine2) {
-              <p class="mt-1">{{ a.addressLine2 }}</p>
+              <p class="mt-1">
+                {{ a.addressLine2 }}
+              </p>
               }
 
               <p class="mt-1">
@@ -211,7 +252,9 @@
                 {{ a.postalCode }}
               </p>
 
-              <p class="mt-1">{{ a.country }}</p>
+              <p class="mt-1">
+                {{ a.country }}
+              </p>
 
             </div>
 
@@ -227,7 +270,6 @@
 
     </div>
 
-    <!-- Order Summary -->
     <aside
       class="h-fit rounded-2xl border bg-white p-6 shadow-sm"
     >
@@ -249,18 +291,32 @@
         </strong>
       </div>
 
+      @if (!checkingStock() && !stockValid()) {
+      <p class="mt-4 text-sm text-orange-700">
+        Please resolve the product warnings before checkout.
+      </p>
+      }
+
       <button
         type="button"
         (click)="checkout()"
         [disabled]="
             placing() ||
+            checkingStock() ||
             cart.loading() ||
             loadingAddresses() ||
-            selectedAddressId() === null
+            selectedAddressId() === null ||
+            !stockValid()
           "
         class="mt-6 w-full rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {{ placing() ? 'Placing Order...' : 'Place Order' }}
+        {{
+        placing()
+        ? 'Placing Order...'
+        : checkingStock()
+        ? 'Checking Stock...'
+        : 'Place Order'
+        }}
       </button>
 
     </aside>

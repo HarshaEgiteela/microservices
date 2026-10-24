@@ -11,7 +11,8 @@ import {
   HttpErrorResponse
 } from '@angular/common/http';
 
-import { finalize } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
+
 import { API_BASE_URL } from '../config/api.config';
 import { AuthService } from './auth.service';
 import { Product } from '../models/app.models';
@@ -34,6 +35,7 @@ export interface BackendCart {
 
 @Injectable({ providedIn: 'root' })
 export class CartService {
+
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly url = `${API_BASE_URL}/cart`;
@@ -60,6 +62,7 @@ export class CartService {
   readonly error = signal('');
 
   private generation = 0;
+  private pendingLoads = 0;
 
   constructor() {
     localStorage.removeItem('shopease-cart');
@@ -73,6 +76,7 @@ export class CartService {
     err: HttpErrorResponse,
     fallback: string
   ): string {
+
     console.error('Cart API error:', err);
 
     if (typeof err.error === 'string' && err.error.trim()) {
@@ -86,7 +90,22 @@ export class CartService {
     return `${fallback} (HTTP ${err.status || 'Network Error'})`;
   }
 
+  private applyCart(
+    cart: BackendCart,
+    generation: number
+  ): void {
+    if (generation !== this.generation) return;
+
+    this.items.set(cart.items ?? []);
+  }
+
   load(): void {
+    void this.loadAsync().catch(() => {
+      // Error is stored in the error signal.
+    });
+  }
+
+  async loadAsync(): Promise<void> {
     if (!this.auth.hasToken()) {
       this.reset();
       return;
@@ -94,30 +113,39 @@ export class CartService {
 
     const generation = this.generation;
 
+    this.pendingLoads++;
     this.loading.set(true);
     this.error.set('');
 
-    this.http.get<BackendCart>(this.url)
-      .pipe(finalize(() => {
-        if (generation === this.generation) {
-          this.loading.set(false);
-        }
-      }))
-      .subscribe({
-        next: cart => {
-          if (generation !== this.generation) return;
+    try {
+      const cart = await firstValueFrom(
+        this.http.get<BackendCart>(this.url)
+      );
 
-          this.items.set(cart.items ?? []);
-        },
-        error: (err: HttpErrorResponse) => {
-          if (generation !== this.generation) return;
+      this.applyCart(cart, generation);
 
-          this.items.set([]);
-          this.error.set(
-            this.getErrorMessage(err, 'Unable to load your cart.')
-          );
-        }
-      });
+    } catch (err) {
+      if (generation === this.generation) {
+        this.error.set(
+          this.getErrorMessage(
+            err as HttpErrorResponse,
+            'Unable to load your cart.'
+          )
+        );
+      }
+
+      throw err;
+
+    } finally {
+      if (generation === this.generation) {
+        this.pendingLoads = Math.max(
+          0,
+          this.pendingLoads - 1
+        );
+
+        this.loading.set(this.pendingLoads > 0);
+      }
+    }
   }
 
   add(product: Product): void {
@@ -131,7 +159,6 @@ export class CartService {
     }
 
     const generation = this.generation;
-
     this.error.set('');
 
     this.http.post<BackendCart>(
@@ -142,72 +169,99 @@ export class CartService {
       }
     ).subscribe({
       next: cart => {
-        if (generation !== this.generation) return;
-
-        this.items.set(cart.items ?? []);
+        this.applyCart(cart, generation);
       },
+
       error: (err: HttpErrorResponse) => {
         if (generation !== this.generation) return;
 
         this.error.set(
-          this.getErrorMessage(err, 'Unable to add product.')
+          this.getErrorMessage(
+            err,
+            'Unable to add product.'
+          )
         );
       }
     });
   }
 
   update(itemId: number, quantity: number): void {
+    void this.updateAsync(itemId, quantity).catch(() => {
+      // Caller can handle the failure.
+    });
+  }
+
+  async updateAsync(
+    itemId: number,
+    quantity: number
+  ): Promise<void> {
+
     if (!Number.isFinite(quantity)) return;
 
     if (quantity <= 0) {
-      this.remove(itemId);
+      await this.removeAsync(itemId);
       return;
     }
 
     const generation = this.generation;
 
-    this.error.set('');
+    try {
+      const cart = await firstValueFrom(
+        this.http.put<BackendCart>(
+          `${this.url}/items/${itemId}`,
+          {
+            quantity: Math.floor(quantity)
+          }
+        )
+      );
 
-    this.http.put<BackendCart>(
-      `${this.url}/items/${itemId}`,
-      { quantity: Math.floor(quantity) }
-    ).subscribe({
-      next: cart => {
-        if (generation !== this.generation) return;
+      this.applyCart(cart, generation);
 
-        this.items.set(cart.items ?? []);
-      },
-      error: (err: HttpErrorResponse) => {
-        if (generation !== this.generation) return;
+    } catch (err) {
+      console.error('Cart quantity update failed:', err);
 
-        this.error.set(
-          this.getErrorMessage(err, 'Unable to update quantity.')
-        );
-      }
-    });
+      // Do not create a global cart error for stock failures.
+      // The cart component displays item-specific warnings.
+      throw err;
+    }
   }
 
   remove(itemId: number): void {
+    void this.removeAsync(itemId).catch(() => {
+      // Error is stored in the error signal.
+    });
+  }
+
+  async removeAsync(itemId: number): Promise<void> {
     const generation = this.generation;
 
-    this.error.set('');
+    try {
+      await firstValueFrom(
+        this.http.delete<void>(
+          `${this.url}/items/${itemId}`
+        )
+      );
 
-    this.http.delete<void>(
-      `${this.url}/items/${itemId}`
-    ).subscribe({
-      next: () => {
-        if (generation !== this.generation) return;
+      if (generation !== this.generation) return;
 
-        this.load();
-      },
-      error: (err: HttpErrorResponse) => {
-        if (generation !== this.generation) return;
+      this.items.update(items =>
+        items.filter(item => item.itemId !== itemId)
+      );
 
+      this.error.set('');
+
+    } catch (err) {
+      if (generation === this.generation) {
         this.error.set(
-          this.getErrorMessage(err, 'Unable to remove item.')
+          this.getErrorMessage(
+            err as HttpErrorResponse,
+            'Unable to remove item.'
+          )
         );
       }
-    });
+
+      throw err;
+    }
   }
 
   clear(): void {
@@ -221,11 +275,15 @@ export class CartService {
 
         this.items.set([]);
       },
+
       error: (err: HttpErrorResponse) => {
         if (generation !== this.generation) return;
 
         this.error.set(
-          this.getErrorMessage(err, 'Unable to clear cart.')
+          this.getErrorMessage(
+            err,
+            'Unable to clear cart.'
+          )
         );
       }
     });
@@ -233,6 +291,8 @@ export class CartService {
 
   reset(): void {
     this.generation++;
+    this.pendingLoads = 0;
+
     this.items.set([]);
     this.loading.set(false);
     this.error.set('');
