@@ -2,6 +2,7 @@
 package com.example.orderservice.repository;
 
 import com.example.orderservice.entity.OrderEntity;
+import com.example.orderservice.entity.OrderStatus;
 
 import jakarta.persistence.LockModeType;
 
@@ -37,4 +38,7 @@ public interface OrderRepository
     Optional<OrderEntity> findByIdForUpdate(
             @Param("orderId") Long orderId
     );
+
+    // Find orders that still need cancellation completion
+    List<OrderEntity> findByStatus(OrderStatus status);
 }

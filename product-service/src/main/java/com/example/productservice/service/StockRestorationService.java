@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
@@ -42,13 +41,20 @@ public class StockRestorationService {
         try {
             transactionTemplate.executeWithoutResult(status -> {
 
-                // Skip a restoration already completed.
-                if (restorationRepository.existsByOperationId(operationId)) {
+                // Check whether this restoration already exists.
+                var existing =
+                        restorationRepository.findByOperationId(operationId);
+
+                if (existing.isPresent()) {
+                    verifyRestoration(
+                            existing.get(),
+                            productId,
+                            quantity
+                    );
                     return;
                 }
 
-                // Reserve the operation ID.
-                // The unique constraint prevents concurrent duplicates.
+                // Reserve the unique operation ID.
                 StockRestoration restoration = new StockRestoration();
                 restoration.setOperationId(operationId);
                 restoration.setProductId(productId);
@@ -56,7 +62,7 @@ public class StockRestorationService {
 
                 restorationRepository.saveAndFlush(restoration);
 
-                // Restore product stock in the same transaction.
+                // Increase stock in the same transaction.
                 int updatedRows = productRepository.increaseStock(
                         productId,
                         quantity
@@ -71,11 +77,30 @@ public class StockRestorationService {
 
         } catch (DataIntegrityViolationException ex) {
 
-            // Another request may have completed this operation.
-            // Verify that before treating the retry as successful.
-            if (!restorationRepository.existsByOperationId(operationId)) {
-                throw ex;
-            }
+            // A concurrent request may have committed this operation.
+            // Verify the stored details before accepting it as successful.
+            StockRestoration existing =
+                    restorationRepository.findByOperationId(operationId)
+                            .orElseThrow(() -> ex);
+
+            verifyRestoration(existing, productId, quantity);
+        }
+    }
+
+    private void verifyRestoration(
+            StockRestoration existing,
+            Long productId,
+            int quantity
+    ) {
+
+        if (!existing.getProductId().equals(productId)
+                || existing.getQuantity() != quantity) {
+
+            throw new IllegalStateException(
+                    "Restoration operation ID already exists "
+                            + "with different product or quantity: "
+                            + existing.getOperationId()
+            );
         }
     }
 }
