@@ -5,7 +5,6 @@ import { FormsModule } from '@angular/forms';
 import {
   Product,
   Order,
-  OrderStatus,
   User
 } from '../../core/models/app.models';
 
@@ -13,6 +12,11 @@ import { ProductService } from '../../core/services/product.service';
 import { OrderService } from '../../core/services/order.service';
 import { UserService } from '../../core/services/user.service';
 import { LoadingComponent } from '../../shared/loading/loading';
+
+type ProductForm = Omit<Product, 'price' | 'quantity'> & {
+  price: number | null;
+  quantity: number | null;
+};
 
 @Component({
   selector: 'app-admin',
@@ -33,16 +37,9 @@ export class AdminComponent {
   readonly message = signal('');
   readonly error = signal('');
 
-  readonly updatingOrderId = signal<number | null>(null);
-
   editingId: number | null = null;
 
-  form: Product = {
-    name: '',
-    price: 0,
-    quantity: 0,
-    description: ''
-  };
+  form: ProductForm = this.emptyForm();
 
   private readonly productService = inject(ProductService);
   private readonly orderService = inject(OrderService);
@@ -52,47 +49,63 @@ export class AdminComponent {
     this.load();
   }
 
+  private emptyForm(): ProductForm {
+    return {
+      name: '',
+      price: null,
+      quantity: null,
+      description: '',
+      active: true
+    };
+  }
+
   load(): void {
     this.loading.set(true);
     this.error.set('');
 
-    let done = 0;
+    let completed = 0;
 
     const finish = () => {
-      done++;
+      completed++;
 
-      if (done === 3) {
+      if (completed === 3) {
         this.loading.set(false);
       }
     };
 
+    // Load products
     this.productService.getAll().subscribe({
       next: data => {
         this.products.set(data);
         finish();
       },
+
       error: () => {
         this.error.set('Unable to load products.');
         finish();
       }
     });
 
+    // Load orders for dashboard statistics
     this.orderService.getAll().subscribe({
       next: data => {
         this.orders.set(data);
         finish();
       },
+
       error: () => {
-        this.error.set('Unable to load orders.');
+        this.error.set('Unable to load order statistics.');
         finish();
       }
     });
 
+    // Load users
     this.userService.getAll().subscribe({
       next: data => {
         this.users.set(data);
         finish();
       },
+
       error: () => {
         this.error.set('Unable to load users.');
         finish();
@@ -100,116 +113,81 @@ export class AdminComponent {
     });
   }
 
-  // Find customer details from the loaded users.
-  customerName(userId: number): string {
-    const user = this.users().find(u => u.id === userId);
-
-    return user?.name ?? `User #${userId}`;
-  }
-
-  customerEmail(userId: number): string {
-    const user = this.users().find(u => u.id === userId);
-
-    return user?.email ?? '';
-  }
-
-  // Allowed next status in the normal delivery flow.
-  nextStatus(status: OrderStatus): OrderStatus | null {
-    switch (status) {
-      case 'PLACED':
-        return 'CONFIRMED';
-
-      case 'CONFIRMED':
-        return 'PROCESSING';
-
-      case 'PROCESSING':
-        return 'SHIPPED';
-
-      case 'SHIPPED':
-        return 'DELIVERED';
-
-      default:
-        return null;
-    }
-  }
-
-  // Advance one step only.
-  advanceStatus(order: Order): void {
-    const next = this.nextStatus(order.status);
-
-    if (
-      order.id == null ||
-      next === null ||
-      this.updatingOrderId() !== null
-    ) {
-      return;
-    }
-
-    this.updatingOrderId.set(order.id);
-    this.error.set('');
-    this.message.set('');
-
-    this.orderService.updateStatus(order.id, next).subscribe({
-      next: updated => {
-        this.orders.update(orders =>
-          orders.map(item =>
-            item.id === updated.id ? updated : item
-          )
-        );
-
-        this.message.set(
-          `Order #${updated.id} updated to ${updated.status}.`
-        );
-
-        this.updatingOrderId.set(null);
-      },
-
-      error: err => {
-        this.error.set(
-          typeof err?.error === 'string'
-            ? err.error
-            : err?.error?.message || 'Unable to update order status.'
-        );
-
-        this.updatingOrderId.set(null);
-      }
-    });
-  }
-
+  // Edit existing product
   edit(product: Product): void {
     this.editingId = product.id ?? null;
-    this.form = { ...product };
-  }
-
-  reset(): void {
-    this.editingId = null;
 
     this.form = {
-      name: '',
-      price: 0,
-      quantity: 0,
-      description: ''
+      name: product.name,
+      price: product.price,
+      quantity: product.quantity,
+      description: product.description ?? '',
+      active: product.active ?? true
     };
+
+    this.error.set('');
+    this.message.set('');
   }
 
+  // Reset product form
+  reset(): void {
+    this.editingId = null;
+    this.form = this.emptyForm();
+    this.error.set('');
+  }
+
+  // Create or update product
   saveProduct(): void {
     this.error.set('');
     this.message.set('');
 
-    const request = this.editingId !== null
-      ? this.productService.update(this.editingId, this.form)
-      : this.productService.create(this.form);
+    const isEditing = this.editingId !== null;
+
+    if (!this.form.name.trim()) {
+      this.error.set('Please enter a product name.');
+      return;
+    }
+
+    if (
+      this.form.price === null ||
+      !Number.isFinite(this.form.price) ||
+      this.form.price < 0
+    ) {
+      this.error.set('Please enter a valid price.');
+      return;
+    }
+
+    if (
+      this.form.quantity === null ||
+      !Number.isInteger(this.form.quantity) ||
+      this.form.quantity < 0
+    ) {
+      this.error.set('Please enter a valid whole-number quantity.');
+      return;
+    }
+
+    const payload: Product = {
+      name: this.form.name.trim(),
+      price: this.form.price,
+      quantity: this.form.quantity,
+      description: this.form.description ?? '',
+      active: this.form.active ?? true
+    };
+
+    const request = isEditing
+      ? this.productService.update(this.editingId!, payload)
+      : this.productService.create(payload);
 
     request.subscribe({
       next: () => {
-        this.message.set(
-          this.editingId !== null
-            ? 'Product updated.'
-            : 'Product created.'
-        );
-
         this.reset();
         this.load();
+
+        this.message.set(
+          isEditing
+            ? 'Product updated successfully.'
+            : 'Product created successfully.'
+        );
       },
 
       error: err => {
@@ -222,14 +200,19 @@ export class AdminComponent {
     });
   }
 
+  // Delete product
   deleteProduct(id: number): void {
+    if (!window.confirm('Are you sure you want to delete this product?')) {
+      return;
+    }
+
     this.error.set('');
     this.message.set('');
 
     this.productService.delete(id).subscribe({
       next: () => {
-        this.message.set('Product deleted.');
         this.load();
+        this.message.set('Product deleted successfully.');
       },
 
       error: err => {

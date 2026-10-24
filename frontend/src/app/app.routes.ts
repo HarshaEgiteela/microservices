@@ -48,6 +48,12 @@ export const routes: Routes = [
       import('./features/admin/admin').then(m => m.AdminComponent)
   },
   {
+    path: 'admin/orders',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/admin/admin-orders').then(m => m.AdminOrdersComponent)
+  },
+  {
     path: '**',
     redirectTo: ''
   }

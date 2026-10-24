@@ -66,7 +66,7 @@ public class SecurityConfig {
                         // Internal stock restoration
                         // InternalStockAuthFilter checks the secret
                         .requestMatchers(
-                                HttpMethod.PUT,
+                                HttpMethod.POST,
                                 "/internal/stock/restore"
                         ).permitAll()
 

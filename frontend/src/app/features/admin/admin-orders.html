@@ -1,0 +1,309 @@
+
+<section class="mx-auto max-w-7xl px-4 py-10 sm:px-5">
+
+  <!-- Header -->
+  <a
+    routerLink="/admin"
+    class="text-sm font-semibold text-blue-700 hover:underline"
+  >
+    ← Back to Dashboard
+  </a>
+
+  <div class="mt-5 flex flex-wrap items-center justify-between gap-4">
+
+    <div>
+      <p class="text-sm font-semibold text-blue-700">
+        ADMIN
+      </p>
+
+      <h1 class="mt-1 text-3xl font-black text-gray-900">
+        Manage Orders
+      </h1>
+
+      <p class="mt-2 text-gray-500">
+        View customer orders, update delivery status and manage cancellations.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      (click)="load()"
+      [disabled]="loading() || updatingOrderId() !== null"
+      class="rounded-xl border border-gray-200 px-4 py-2 font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+    >
+      Refresh
+    </button>
+
+  </div>
+
+  <!-- Messages -->
+  @if (loading()) {
+  <div class="mt-5">
+    <app-loading label="Loading orders..." />
+  </div>
+  }
+
+  @if (message()) {
+  <div class="mt-5 rounded-xl bg-green-50 p-4 text-green-700">
+    {{ message() }}
+  </div>
+  }
+
+  @if (error()) {
+  <div class="mt-5 rounded-xl bg-red-50 p-4 text-red-700">
+    {{ error() }}
+  </div>
+  }
+
+  <!-- Orders Table -->
+  <div class="mt-8 overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+
+    <table class="w-full min-w-[850px] text-left text-sm">
+
+      <thead class="border-b border-gray-200 bg-gray-50 text-gray-600">
+      <tr>
+        <th class="px-5 py-4">Order ID</th>
+        <th class="px-5 py-4">Customer</th>
+        <th class="px-5 py-4">Total</th>
+        <th class="px-5 py-4">Status</th>
+        <th class="px-5 py-4">Actions</th>
+        <th class="px-5 py-4">Details</th>
+      </tr>
+      </thead>
+
+      <tbody>
+
+      @for (order of orders(); track order.id) {
+
+      <!-- Main Order Row -->
+      <tr
+        (click)="toggleOrder(order.id!)"
+        class="cursor-pointer border-b border-gray-100 transition hover:bg-blue-50/50"
+      >
+
+        <td class="px-5 py-4 font-bold text-gray-900">
+          #{{ order.id }}
+        </td>
+
+        <td class="px-5 py-4">
+          <p class="font-semibold text-gray-900">
+            {{ customerName(order.userId) }}
+          </p>
+
+          <p class="mt-1 text-xs text-gray-500">
+            User #{{ order.userId }}
+          </p>
+        </td>
+
+        <td class="px-5 py-4 font-bold text-blue-700">
+          ₹{{ order.totalAmount }}
+        </td>
+
+        <td class="px-5 py-4">
+              <span
+                class="rounded-full px-3 py-1.5 text-xs font-bold"
+                [class.bg-green-100]="order.status === 'DELIVERED'"
+                [class.text-green-800]="order.status === 'DELIVERED'"
+                [class.bg-red-100]="order.status === 'CANCELLED'"
+                [class.text-red-700]="order.status === 'CANCELLED'"
+                [class.bg-yellow-100]="order.status === 'CANCEL_PENDING'"
+                [class.text-yellow-800]="order.status === 'CANCEL_PENDING'"
+                [class.bg-blue-100]="order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && order.status !== 'CANCEL_PENDING'"
+                [class.text-blue-800]="order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && order.status !== 'CANCEL_PENDING'"
+              >
+                {{ order.status }}
+              </span>
+        </td>
+
+        <!-- Actions -->
+        <td class="px-5 py-4">
+
+          <div class="flex flex-wrap items-center gap-2">
+
+            @if (nextStatus(order.status); as next) {
+
+            <button
+              type="button"
+              (click)="$event.stopPropagation(); advanceStatus(order)"
+              [disabled]="updatingOrderId() !== null"
+              class="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              @if (updatingOrderId() === order.id) {
+              Updating...
+              } @else {
+              Mark {{ next }}
+              }
+            </button>
+
+            } @else if (order.status === 'DELIVERED') {
+
+            <span class="font-semibold text-green-700">
+                    ✓ Delivered
+                  </span>
+
+            } @else if (order.status === 'CANCEL_PENDING') {
+
+            <span class="font-semibold text-yellow-700">
+                    Cancellation Pending
+                  </span>
+
+            } @else if (order.status === 'CANCELLED') {
+
+            <span class="font-semibold text-red-600">
+                    Cancelled
+                  </span>
+
+            }
+
+            @if (canCancel(order.status)) {
+
+            <button
+              type="button"
+              (click)="$event.stopPropagation(); cancelOrder(order)"
+              [disabled]="updatingOrderId() !== null"
+              class="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Cancel
+            </button>
+
+            }
+
+          </div>
+
+        </td>
+
+        <!-- Expand / Collapse -->
+        <td class="px-5 py-4 font-semibold text-blue-700">
+          {{ expandedOrderId() === order.id ? 'Hide ▲' : 'View ▼' }}
+        </td>
+
+      </tr>
+
+      <!-- Expanded Order Details -->
+      @if (expandedOrderId() === order.id) {
+
+      <tr class="border-b border-gray-200 bg-gray-50">
+
+        <td colspan="6" class="px-5 py-6">
+
+          <div class="grid gap-6 md:grid-cols-2">
+
+            <!-- Customer Details -->
+            <div>
+
+              <h3 class="text-lg font-bold text-gray-900">
+                Order #{{ order.id }} Details
+              </h3>
+
+              <div class="mt-4 space-y-3 text-sm">
+
+                <p>
+                        <span class="font-semibold text-gray-700">
+                          Customer:
+                        </span>
+                  {{ customerName(order.userId) }}
+                </p>
+
+                <p>
+                        <span class="font-semibold text-gray-700">
+                          Email:
+                        </span>
+                  {{ customerEmail(order.userId) || 'Not available' }}
+                </p>
+
+                <p>
+                        <span class="font-semibold text-gray-700">
+                          User ID:
+                        </span>
+                  {{ order.userId }}
+                </p>
+
+                <p>
+                        <span class="font-semibold text-gray-700">
+                          Status:
+                        </span>
+                  {{ order.status }}
+                </p>
+
+                <p>
+                        <span class="font-semibold text-gray-700">
+                          Order Total:
+                        </span>
+                  <span class="font-bold text-blue-700">
+                          ₹{{ order.totalAmount }}
+                        </span>
+                </p>
+
+              </div>
+
+            </div>
+
+            <!-- Ordered Products -->
+            <div>
+
+              <h3 class="text-lg font-bold text-gray-900">
+                Ordered Products
+              </h3>
+
+              <div class="mt-4 space-y-3">
+
+                @for (item of order.items; track item.productId) {
+
+                <div class="rounded-xl border border-gray-200 bg-white p-4">
+
+                  <p class="font-semibold text-gray-900">
+                    {{ item.productName }}
+                  </p>
+
+                  <p class="mt-2 text-sm text-gray-500">
+                    Product #{{ item.productId }}
+                  </p>
+
+                  <p class="mt-1 text-sm text-gray-500">
+                    Quantity: {{ item.quantity }}
+                    · ₹{{ item.unitPrice }} each
+                  </p>
+
+                  <p class="mt-2 font-bold text-blue-700">
+                    Subtotal: ₹{{ item.subtotal }}
+                  </p>
+
+                </div>
+
+                } @empty {
+
+                <p class="text-sm text-gray-500">
+                  No product details available.
+                </p>
+
+                }
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </td>
+
+      </tr>
+
+      }
+
+      } @empty {
+
+      <tr>
+        <td colspan="6" class="px-5 py-12 text-center text-gray-500">
+          No orders available.
+        </td>
+      </tr>
+
+      }
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+</section>

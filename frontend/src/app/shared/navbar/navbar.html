@@ -1,5 +1,6 @@
 
 <nav class="sticky top-0 z-50 border-b border-gray-200/80 bg-white/95 backdrop-blur">
+
   <div class="mx-auto flex min-h-[68px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-5">
 
     <!-- Brand -->
@@ -15,12 +16,15 @@
         ⌂
       </span>
 
-      <span>ShopEase<span class="text-yellow-500">.</span></span>
+      <span>
+        ShopEase<span class="text-yellow-500">.</span>
+      </span>
     </a>
 
     <!-- Cart and Account Menu -->
     <div class="flex shrink-0 items-center gap-2 sm:gap-3">
 
+      <!-- Cart -->
       <button
         type="button"
         (click)="openCart()"
@@ -39,7 +43,9 @@
         }
       </button>
 
-      <details class="relative">
+      <!-- Account Menu -->
+      <details #accountMenu class="relative">
+
         <summary
           aria-label="Open account menu"
           class="flex h-10 cursor-pointer list-none items-center gap-2 rounded-xl bg-blue-700 px-3 text-sm font-bold text-white transition hover:bg-blue-800 [&::-webkit-details-marker]:hidden"
@@ -49,17 +55,24 @@
           <span aria-hidden="true" class="text-xs">▼</span>
         </summary>
 
+        <!-- Dropdown -->
         <div
           class="absolute right-0 top-12 z-[60] w-52 overflow-hidden rounded-xl border border-gray-200 bg-white py-2 shadow-xl"
         >
 
           @if (auth.hasToken()) {
 
+          <!-- Account Header -->
           <div class="border-b border-gray-100 px-4 py-3">
-            <p class="font-semibold text-gray-800">My Account</p>
+
+            <p class="font-semibold text-gray-800">
+              My Account
+            </p>
+
             <p class="mt-1 text-xs text-gray-500">
               Manage your profile and addresses
             </p>
+
           </div>
 
           <!-- Profile -->
@@ -72,18 +85,24 @@
             My Profile
           </a>
 
-          <!-- My Orders -->
+          <!-- Orders: Admin vs Customer -->
           <a
-            routerLink="/orders"
+            [routerLink]="auth.isAdmin() ? '/admin/orders' : '/orders'"
             (click)="closeMenu($event)"
             class="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition hover:bg-blue-50 hover:text-blue-700"
           >
             <span aria-hidden="true">📦</span>
+
+            @if (auth.isAdmin()) {
+            Manage Orders
+            } @else {
             My Orders
+            }
           </a>
 
           <!-- Admin Dashboard -->
           @if (auth.isAdmin()) {
+
           <a
             routerLink="/admin"
             (click)="closeMenu($event)"
@@ -92,6 +111,7 @@
             <span aria-hidden="true">⚙️</span>
             Admin Dashboard
           </a>
+
           }
 
           <!-- Logout -->
@@ -106,6 +126,7 @@
 
           } @else {
 
+          <!-- Login -->
           <a
             routerLink="/login"
             (click)="closeMenu($event)"
@@ -115,6 +136,7 @@
             Login
           </a>
 
+          <!-- Register -->
           <a
             routerLink="/register"
             (click)="closeMenu($event)"
@@ -125,8 +147,13 @@
           </a>
 
           }
+
         </div>
+
       </details>
+
     </div>
+
   </div>
+
 </nav>

@@ -33,6 +33,7 @@ export interface Product {
   price: number;
   quantity: number;
   description?: string;
+  active?: boolean;
 }
 
 export type OrderStatus =
@@ -41,6 +42,7 @@ export type OrderStatus =
   | 'PROCESSING'
   | 'SHIPPED'
   | 'DELIVERED'
+  | 'CANCEL_PENDING'
   | 'CANCELLED';
 
 export interface OrderItem {
