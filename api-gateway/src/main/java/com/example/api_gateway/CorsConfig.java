@@ -1,3 +1,4 @@
+
 package com.example.api_gateway;
 
 import org.springframework.context.annotation.Bean;
@@ -16,13 +17,15 @@ public class CorsConfig {
 
         CorsConfiguration config = new CorsConfiguration();
 
-        config.setAllowedOrigins(List.of("http://localhost:4200"));
+        config.setAllowedOrigins(List.of(
+                "http://localhost:4200",
+                "https://shopease-woad-one.vercel.app"
+        ));
 
         config.setAllowedMethods(List.of(
                 "GET",
                 "POST",
                 "PUT",
-                "PATCH",
                 "PATCH",
                 "DELETE",
                 "OPTIONS"
