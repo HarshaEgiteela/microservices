@@ -29,6 +29,42 @@ services:
       start_period: 90s
 
   # =========================
+  # Redis Cache
+  # =========================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+
+    # Accessible only within the Docker network.
+    expose:
+      - "6379"
+
+    command:
+      - redis-server
+      - --maxmemory
+      - 16mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # =========================
   # User Service
   # =========================
   user-service:
@@ -77,6 +113,8 @@ services:
     depends_on:
       eureka-server:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://microservices-db.c9igqemwszh9.ap-southeast-2.rds.amazonaws.com:3306/productdb
@@ -85,6 +123,10 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       INTERNAL_STOCK_SECRET: ${INTERNAL_STOCK_SECRET:?Set INTERNAL_STOCK_SECRET in .env}
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+      # Redis connection
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
 
     deploy:
       resources:

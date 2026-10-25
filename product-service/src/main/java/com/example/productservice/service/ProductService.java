@@ -7,6 +7,8 @@ import com.example.productservice.repository.ProductRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,18 +20,27 @@ public class ProductService {
 
     private final ProductRepository productRepository;
 
-    // Show only active products in the shop.
+    // ========================================
+    // PUBLIC: GET ALL ACTIVE PRODUCTS
+    // ========================================
+
+    // First request: fetch from MySQL and cache in Redis.
+    // Later requests: return cached data until eviction or TTL.
+    @Cacheable(value = "activeProducts", key = "'all'")
     @Transactional(readOnly = true)
     public List<Product> getAllProducts() {
+
         return productRepository.findAll()
                 .stream()
                 .filter(Product::isActive)
                 .toList();
     }
 
-    // Find a product by ID.
-    // Inactive products remain accessible internally
-    // for existing order history and stock restoration.
+    // ========================================
+    // GET PRODUCT BY ID
+    // ========================================
+
+    // Not cached: stock operations must read from MySQL.
     @Transactional(readOnly = true)
     public Product getProductById(Long id) {
 
@@ -41,7 +52,12 @@ public class ProductService {
                 );
     }
 
-    // Admin creates a product.
+    // ========================================
+    // ADMIN: CREATE PRODUCT
+    // ========================================
+
+    // Clear cached product list after successful commit.
+    @CacheEvict(value = "activeProducts", allEntries = true)
     @Transactional
     public Product createProduct(Product product) {
 
@@ -53,7 +69,11 @@ public class ProductService {
         return productRepository.save(product);
     }
 
-    // Admin updates an existing product.
+    // ========================================
+    // ADMIN: UPDATE PRODUCT
+    // ========================================
+
+    @CacheEvict(value = "activeProducts", allEntries = true)
     @Transactional
     public Product updateProduct(
             Long id,
@@ -72,7 +92,11 @@ public class ProductService {
         return productRepository.save(product);
     }
 
-    // Soft delete: hide product without removing its record.
+    // ========================================
+    // ADMIN: SOFT DELETE PRODUCT
+    // ========================================
+
+    @CacheEvict(value = "activeProducts", allEntries = true)
     @Transactional
     public void deleteProduct(Long id) {
 
@@ -83,7 +107,13 @@ public class ProductService {
         productRepository.save(product);
     }
 
-    // Reduce inventory when an order is placed.
+    // ========================================
+    // CHECKOUT: REDUCE STOCK
+    // ========================================
+
+    // Stock is always updated through MySQL.
+    // Redis is used only for product-list caching.
+    @CacheEvict(value = "activeProducts", allEntries = true)
     @Transactional
     public Product reduceQuantity(
             Long productId,
@@ -122,7 +152,11 @@ public class ProductService {
         return getProductById(productId);
     }
 
-    // Restore inventory when an order is cancelled.
+    // ========================================
+    // RESTORE STOCK
+    // ========================================
+
+    @CacheEvict(value = "activeProducts", allEntries = true)
     @Transactional
     public Product increaseQuantity(
             Long productId,
@@ -145,6 +179,10 @@ public class ProductService {
 
         return getProductById(productId);
     }
+
+    // ========================================
+    // VALIDATION HELPERS
+    // ========================================
 
     private void validateStockQuantity(int quantity) {
 

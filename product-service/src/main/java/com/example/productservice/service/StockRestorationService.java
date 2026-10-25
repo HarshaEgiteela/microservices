@@ -8,6 +8,7 @@ import com.example.productservice.repository.StockRestorationRepository;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.cache.CacheManager;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -19,6 +20,7 @@ public class StockRestorationService {
     private final ProductRepository productRepository;
     private final StockRestorationRepository restorationRepository;
     private final TransactionTemplate transactionTemplate;
+    private final CacheManager cacheManager;
 
     public void restoreStock(
             String operationId,
@@ -41,7 +43,7 @@ public class StockRestorationService {
         try {
             transactionTemplate.executeWithoutResult(status -> {
 
-                // Check whether this restoration already exists.
+                // Check for an existing restoration operation.
                 var existing =
                         restorationRepository.findByOperationId(operationId);
 
@@ -62,7 +64,7 @@ public class StockRestorationService {
 
                 restorationRepository.saveAndFlush(restoration);
 
-                // Increase stock in the same transaction.
+                // Update MySQL inventory.
                 int updatedRows = productRepository.increaseStock(
                         productId,
                         quantity
@@ -73,12 +75,19 @@ public class StockRestorationService {
                             "Product not found: " + productId
                     );
                 }
+
+                // Schedule cache eviction after transaction commit.
+                // RedisCacheManager is transaction-aware.
+                var cache = cacheManager.getCache("activeProducts");
+
+                if (cache != null) {
+                    cache.clear();
+                }
             });
 
         } catch (DataIntegrityViolationException ex) {
 
-            // A concurrent request may have committed this operation.
-            // Verify the stored details before accepting it as successful.
+            // Another request may already have restored stock.
             StockRestoration existing =
                     restorationRepository.findByOperationId(operationId)
                             .orElseThrow(() -> ex);

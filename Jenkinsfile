@@ -141,24 +141,71 @@ pipeline {
             }
         }
 
-        // 5. DEPLOY TO AWS EC2
+        // 5. SYNC PRODUCTION COMPOSE FILE TO EC2
+        stage('Sync Docker Compose to EC2') {
+            steps {
+                sshagent(['ec2-deploy-key']) {
+                    bat '''
+                        @echo off
+
+                        echo Uploading production Docker Compose file...
+
+                        scp -o BatchMode=yes -o StrictHostKeyChecking=yes docker-compose.yml ec2-user@16.178.17.40:/home/ec2-user/microservices/docker-compose.yml.new
+                        if errorlevel 1 exit /b 1
+
+                        echo Validating and activating Docker Compose...
+
+                        ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ec2-user@16.178.17.40 "cd ~/microservices && docker-compose -f docker-compose.yml.new config --quiet && cp docker-compose.yml docker-compose.yml.before-redis && mv docker-compose.yml.new docker-compose.yml"
+                        if errorlevel 1 exit /b 1
+
+                        echo Docker Compose synchronized successfully.
+                    '''
+                }
+            }
+        }
+
+        // 6. DEPLOY REDIS AND PRODUCT SERVICE TO AWS EC2
         stage('Deploy to AWS EC2') {
             steps {
                 sshagent(['ec2-deploy-key']) {
                     bat '''
                         @echo off
-                        ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ec2-user@16.178.17.40 "cd ~/microservices && docker-compose config --quiet && docker-compose pull && docker-compose up -d --wait --wait-timeout 600 && docker-compose ps"
+
+                        echo Validating production configuration...
+
+                        ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ec2-user@16.178.17.40 "cd ~/microservices && docker-compose config --quiet"
+                        if errorlevel 1 exit /b 1
+
+                        echo Pulling Redis and Product Service images...
+
+                        ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ec2-user@16.178.17.40 "cd ~/microservices && docker-compose pull redis product-service"
+                        if errorlevel 1 exit /b 1
+
+                        echo Starting Redis...
+
+                        ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ec2-user@16.178.17.40 "cd ~/microservices && docker-compose up -d --no-deps --wait --wait-timeout 120 redis"
+                        if errorlevel 1 exit /b 1
+
+                        echo Deploying Product Service...
+
+                        ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ec2-user@16.178.17.40 "cd ~/microservices && docker-compose up -d --no-deps --wait --wait-timeout 300 product-service"
+                        if errorlevel 1 exit /b 1
+
+                        echo Deployment status...
+
+                        ssh -o BatchMode=yes -o StrictHostKeyChecking=yes ec2-user@16.178.17.40 "cd ~/microservices && docker-compose ps"
+                        if errorlevel 1 exit /b 1
                     '''
                 }
             }
         }
     }
 
-    // 6. PIPELINE RESULT
+    // 7. PIPELINE RESULT
     post {
         success {
             echo 'Jenkins pipeline completed successfully.'
-            echo 'Docker images pushed and EC2 deployment finished.'
+            echo 'Docker images pushed and Redis/Product Service deployed.'
         }
 
         failure {
