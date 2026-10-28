@@ -1,15 +1,11 @@
 
 <section class="mx-auto max-w-7xl px-5 py-8 sm:py-12">
 
-  <!-- Hero Section -->
+  <!-- Original Hero Section -->
   <div class="overflow-hidden rounded-3xl bg-blue-700 text-white">
-
     <div class="grid gap-8 px-6 py-10 sm:px-10 sm:py-14 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-
       <div>
-        <span
-          class="inline-flex rounded-full bg-yellow-300 px-3 py-1.5 text-xs font-extrabold uppercase tracking-wider text-blue-950"
-        >
+        <span class="inline-flex rounded-full bg-yellow-300 px-3 py-1.5 text-xs font-extrabold uppercase tracking-wider text-blue-950">
           Shop smarter
         </span>
 
@@ -32,13 +28,10 @@
       </div>
 
       <div class="hidden items-center justify-center lg:flex">
-        <div
-          class="flex h-64 w-64 rotate-3 items-center justify-center rounded-[2.5rem] bg-white/10 text-9xl ring-1 ring-white/20"
-        >
+        <div class="flex h-64 w-64 rotate-3 items-center justify-center rounded-[2.5rem] bg-white/10 text-9xl ring-1 ring-white/20">
           🛍️
         </div>
       </div>
-
     </div>
   </div>
 
@@ -46,7 +39,6 @@
   <div id="shop" class="mt-12 scroll-mt-24">
 
     <div class="flex flex-wrap items-end justify-between gap-4">
-
       <div>
         <p class="text-xs font-extrabold uppercase tracking-[0.2em] text-blue-700">
           The collection
@@ -61,23 +53,215 @@
         </p>
       </div>
 
-      <div class="flex flex-wrap items-center gap-3">
+      @if (!loading() && !error()) {
+      <span class="rounded-full bg-yellow-100 px-3 py-1.5 text-sm font-bold text-yellow-900">
+          {{ totalElements() }} products
+        </span>
+      }
+    </div>
 
-        @if (!loading() && !error()) {
-        <span
-          class="rounded-full bg-yellow-100 px-3 py-1.5 text-sm font-bold text-yellow-900"
+    <!-- Design F: Search Bar -->
+    <div class="mt-7 space-y-3">
+
+      <form
+        (ngSubmit)="searchProducts()"
+        class="flex gap-2"
+        role="search"
+      >
+        <label for="home-search" class="sr-only">
+          Search products
+        </label>
+
+        <input
+          id="home-search"
+          type="search"
+          name="searchInput"
+          [(ngModel)]="searchInput"
+          placeholder="Search products..."
+          class="min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+        />
+
+        <button
+          type="submit"
+          class="rounded-xl bg-blue-700 px-5 py-3 font-bold text-white hover:bg-blue-800"
         >
-            {{ totalElements() }} products
-          </span>
+          Search
+        </button>
+      </form>
+
+      <!-- Inline Filters -->
+      <div class="flex flex-wrap items-center gap-2">
+
+        <!-- Category Dropdown -->
+        <div class="relative">
+          <button
+            type="button"
+            (click)="toggleDropdown('category')"
+            [attr.aria-expanded]="openDropdown === 'category'"
+            class="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:border-blue-500"
+          >
+            Category{{ category ? ': ' + category : '' }} ▾
+          </button>
+
+          @if (openDropdown === 'category') {
+          <div class="absolute left-0 z-30 mt-2 w-64 rounded-xl border border-gray-200 bg-white p-4 shadow-xl">
+            <label
+              for="home-category"
+              class="mb-2 block text-sm font-semibold"
+            >
+              Category
+            </label>
+
+            <select
+              id="home-category"
+              name="category"
+              [(ngModel)]="category"
+              (ngModelChange)="changeCategory()"
+              class="w-full rounded-lg border border-gray-300 p-2.5"
+            >
+              <option value="">All categories</option>
+
+              @for (item of categories; track item) {
+              <option [value]="item">{{ item }}</option>
+              }
+            </select>
+          </div>
+          }
+        </div>
+
+        <!-- Price Dropdown -->
+        <div class="relative">
+          <button
+            type="button"
+            (click)="toggleDropdown('price')"
+            [attr.aria-expanded]="openDropdown === 'price'"
+            class="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:border-blue-500"
+          >
+            Price ▾
+          </button>
+
+          @if (openDropdown === 'price') {
+          <form
+            (ngSubmit)="applyPrice()"
+            class="absolute left-0 z-30 mt-2 w-64 space-y-3 rounded-xl border border-gray-200 bg-white p-4 shadow-xl"
+          >
+            <label
+              for="home-min-price"
+              class="block text-sm font-semibold"
+            >
+              Minimum price (₹)
+            </label>
+
+            <input
+              id="home-min-price"
+              name="minPrice"
+              type="number"
+              min="0"
+              step="0.01"
+              [(ngModel)]="minPrice"
+              placeholder="0"
+              class="w-full rounded-lg border border-gray-300 p-2.5"
+            />
+
+            <label
+              for="home-max-price"
+              class="block text-sm font-semibold"
+            >
+              Maximum price (₹)
+            </label>
+
+            <input
+              id="home-max-price"
+              name="maxPrice"
+              type="number"
+              min="0"
+              step="0.01"
+              [(ngModel)]="maxPrice"
+              placeholder="Any"
+              class="w-full rounded-lg border border-gray-300 p-2.5"
+            />
+
+            @if (filterError) {
+            <p class="text-sm text-red-600">
+              {{ filterError }}
+            </p>
+            }
+
+            <div class="flex gap-2">
+              <button
+                type="submit"
+                class="flex-1 rounded-lg bg-blue-700 px-3 py-2 text-sm font-bold text-white"
+              >
+                Apply
+              </button>
+
+              <button
+                type="button"
+                (click)="clearPrice()"
+                class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold"
+              >
+                Clear
+              </button>
+            </div>
+          </form>
+          }
+        </div>
+
+        <!-- Sort Dropdown -->
+        <div class="relative">
+          <button
+            type="button"
+            (click)="toggleDropdown('sort')"
+            [attr.aria-expanded]="openDropdown === 'sort'"
+            class="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:border-blue-500"
+          >
+            Sort ▾
+          </button>
+
+          @if (openDropdown === 'sort') {
+          <div class="absolute left-0 z-30 mt-2 w-60 rounded-xl border border-gray-200 bg-white p-4 shadow-xl">
+            <label
+              for="home-sort"
+              class="mb-2 block text-sm font-semibold"
+            >
+              Sort products
+            </label>
+
+            <select
+              id="home-sort"
+              name="sort"
+              [(ngModel)]="sort"
+              (ngModelChange)="changeSort()"
+              class="w-full rounded-lg border border-gray-300 p-2.5"
+            >
+              <option value="name_asc">Name: A to Z</option>
+              <option value="name_desc">Name: Z to A</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+            </select>
+          </div>
+          }
+        </div>
+
+        @if (hasFilters) {
+        <button
+          type="button"
+          (click)="clearFilters()"
+          class="px-2 py-2 text-sm font-semibold text-blue-700 hover:underline"
+        >
+          Clear filters
+        </button>
         }
 
-        <a
-          routerLink="/products"
-          class="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-800"
+        @if (appliedSearch) {
+        <button
+          type="button"
+          (click)="clearSearch()"
+          class="px-2 py-2 text-sm font-semibold text-blue-700 hover:underline"
         >
-          Search & Filter
-        </a>
-
+          Clear search
+        </button>
+        }
       </div>
     </div>
 
@@ -90,9 +274,7 @@
 
     <!-- Error -->
     @if (error()) {
-    <div
-      class="mt-7 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-red-100 bg-red-50 p-5 text-red-700"
-    >
+    <div class="mt-7 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-red-100 bg-red-50 p-5 text-red-700">
       <p>{{ error() }}</p>
 
       <button
@@ -107,10 +289,7 @@
 
     <!-- Empty Products -->
     @if (!loading() && !error() && products().length === 0) {
-
-    <div
-      class="mt-8 rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center"
-    >
+    <div class="mt-8 rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
       <div class="text-5xl">📦</div>
 
       <h3 class="mt-4 text-xl font-bold text-gray-900">
@@ -118,78 +297,56 @@
       </h3>
 
       <p class="mt-2 text-gray-500">
-        There are no products available right now.
-        Check back soon.
+        No products match your search or filters.
+        Try a different search or clear the filters.
       </p>
     </div>
-
     }
 
-    <!-- Product Cards -->
+    <!-- Original Product Cards -->
     @if (!loading() && !error()) {
-
     <div class="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 
       @for (product of products(); track product.id) {
-
-      <article
-        class="group overflow-hidden rounded-2xl border border-gray-200 bg-white transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl"
-      >
+      <article class="group overflow-hidden rounded-2xl border border-gray-200 bg-white transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl">
 
         <!-- Product Image -->
-        <div
-          class="relative flex h-48 items-center justify-center overflow-hidden bg-gradient-to-br from-blue-50 to-yellow-50"
-        >
+        <div class="relative flex h-48 items-center justify-center overflow-hidden bg-gradient-to-br from-blue-50 to-yellow-50">
 
           @if (product.imageUrl) {
-
           <img
             [src]="product.imageUrl"
             [alt]="product.name"
             loading="lazy"
             class="h-full w-full object-contain p-3 transition duration-200 group-hover:scale-105"
           />
-
           } @else {
-
           <span
             class="text-7xl transition duration-200 group-hover:scale-110"
             aria-hidden="true"
           >
                   {{ productIcon(product.name) }}
                 </span>
-
           }
 
           @if (product.quantity > 0) {
-
-          <span
-            class="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-green-700 shadow-sm"
-          >
+          <span class="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-green-700 shadow-sm">
                   In stock
                 </span>
-
           } @else {
-
-          <span
-            class="absolute left-3 top-3 rounded-full bg-gray-900/80 px-3 py-1 text-xs font-bold text-white"
-          >
+          <span class="absolute left-3 top-3 rounded-full bg-gray-900/80 px-3 py-1 text-xs font-bold text-white">
                   Out of stock
                 </span>
-
           }
-
         </div>
 
         <!-- Product Details -->
         <div class="p-5">
 
           @if (product.category) {
-
           <p class="mb-2 text-xs font-bold uppercase tracking-wide text-blue-700">
             {{ product.category }}
           </p>
-
           }
 
           <h3 class="line-clamp-2 min-h-12 text-lg font-bold text-gray-900">
@@ -201,19 +358,16 @@
           </p>
 
           <div class="mt-5 flex items-center justify-between gap-3">
-
                 <span class="text-xl font-black text-blue-700">
                   ₹{{ product.price | number:'1.0-2' }}
                 </span>
 
             @if (cartItem(product.id); as item) {
-
-            <!-- Existing Backend Cart Quantity Controls -->
+            <!-- Original Backend Cart Quantity Controls -->
             <div
               class="flex items-center overflow-hidden rounded-xl border border-blue-200 bg-blue-50"
               [attr.aria-label]="'Quantity of ' + product.name + ' in cart'"
             >
-
               <button
                 type="button"
                 (click)="decrease(product)"
@@ -223,9 +377,7 @@
                 −
               </button>
 
-              <span
-                class="min-w-8 px-1 text-center text-sm font-extrabold text-blue-900"
-              >
+              <span class="min-w-8 px-1 text-center text-sm font-extrabold text-blue-900">
                       {{ item.quantity }}
                     </span>
 
@@ -238,11 +390,8 @@
               >
                 +
               </button>
-
             </div>
-
             } @else {
-
             <button
               type="button"
               (click)="add(product)"
@@ -251,26 +400,17 @@
             >
               Add to cart
             </button>
-
             }
-
           </div>
-
         </div>
-
       </article>
-
       }
-
     </div>
-
     }
 
     <!-- Pagination -->
     @if (!loading() && !error() && totalPages() > 1) {
-
     <div class="mt-10 flex flex-wrap items-center justify-center gap-4">
-
       <button
         type="button"
         (click)="previousPage()"
@@ -292,11 +432,8 @@
       >
         Next
       </button>
-
     </div>
-
     }
 
   </div>
-
 </section>

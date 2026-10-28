@@ -1,5 +1,10 @@
 
-import { Component, inject, signal } from '@angular/core';
+import {
+  Component,
+  inject,
+  signal
+} from '@angular/core';
+
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
@@ -26,33 +31,27 @@ import { Product } from '../../core/models/app.models';
   templateUrl: './products.html'
 })
 export class ProductsComponent {
+
   readonly products = signal<Product[]>([]);
   readonly loading = signal(false);
   readonly error = signal('');
+
   readonly totalElements = signal(0);
   readonly totalPages = signal(0);
   readonly currentPage = signal(0);
-  readonly pageSize = 12;
 
+  readonly pageSize = 12;
   readonly cart = inject(CartService);
+
   private readonly productService = inject(ProductService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  // Search is independent from sidebar filters
-  searchInput = '';
-  appliedSearch = '';
-
-  // Sidebar filter inputs
+  search = '';
   category = '';
   minPrice: number | null = null;
   maxPrice: number | null = null;
 
-  private appliedCategory = '';
-  private appliedMinPrice: number | undefined;
-  private appliedMaxPrice: number | undefined;
-
-  // Sorting is independent from search and filters
   sort: NonNullable<ProductFilters['sort']> = 'name_asc';
 
   private requestVersion = 0;
@@ -70,21 +69,12 @@ export class ProductsComponent {
   ];
 
   constructor() {
-    this.load(0);
+    this.load();
   }
 
-  searchProducts(): void {
-    this.appliedSearch = this.searchInput.trim();
-    this.load(0);
-  }
+  load(page: number = 0): void {
+    if (page < 0) return;
 
-  clearSearch(): void {
-    this.searchInput = '';
-    this.appliedSearch = '';
-    this.load(0);
-  }
-
-  applyFilters(): void {
     if (
       this.minPrice != null &&
       (!Number.isFinite(this.minPrice) || this.minPrice < 0)
@@ -106,52 +96,11 @@ export class ProductsComponent {
       this.maxPrice != null &&
       this.minPrice > this.maxPrice
     ) {
-      this.error.set('Minimum price cannot exceed maximum price.');
+      this.error.set(
+        'Minimum price cannot exceed maximum price.'
+      );
       return;
     }
-
-    this.appliedCategory = this.category;
-    this.appliedMinPrice = this.minPrice ?? undefined;
-    this.appliedMaxPrice = this.maxPrice ?? undefined;
-
-    this.load(0);
-  }
-
-  clearFilters(): void {
-    this.category = '';
-    this.minPrice = null;
-    this.maxPrice = null;
-
-    this.appliedCategory = '';
-    this.appliedMinPrice = undefined;
-    this.appliedMaxPrice = undefined;
-
-    this.load(0);
-  }
-
-  changeSort(): void {
-    this.load(0);
-  }
-
-  resetAll(): void {
-    this.searchInput = '';
-    this.appliedSearch = '';
-
-    this.category = '';
-    this.minPrice = null;
-    this.maxPrice = null;
-
-    this.appliedCategory = '';
-    this.appliedMinPrice = undefined;
-    this.appliedMaxPrice = undefined;
-
-    this.sort = 'name_asc';
-
-    this.load(0);
-  }
-
-  load(page: number = 0): void {
-    if (page < 0) return;
 
     const version = ++this.requestVersion;
 
@@ -159,10 +108,10 @@ export class ProductsComponent {
     this.error.set('');
 
     this.productService.getProducts({
-      search: this.appliedSearch,
-      category: this.appliedCategory,
-      minPrice: this.appliedMinPrice,
-      maxPrice: this.appliedMaxPrice,
+      search: this.search,
+      category: this.category,
+      minPrice: this.minPrice ?? undefined,
+      maxPrice: this.maxPrice ?? undefined,
       sort: this.sort,
       page,
       size: this.pageSize
@@ -180,14 +129,24 @@ export class ProductsComponent {
         if (version !== this.requestVersion) return;
 
         this.products.set([]);
-        this.totalElements.set(0);
-        this.totalPages.set(0);
-        this.error.set(
-          'Unable to load products. Please try again.'
-        );
+        this.error.set('Unable to load products.');
         this.loading.set(false);
       }
     });
+  }
+
+  applyFilters(): void {
+    this.load(0);
+  }
+
+  resetFilters(): void {
+    this.search = '';
+    this.category = '';
+    this.minPrice = null;
+    this.maxPrice = null;
+    this.sort = 'name_asc';
+
+    this.load(0);
   }
 
   nextPage(): void {
@@ -216,9 +175,7 @@ export class ProductsComponent {
       return;
     }
 
-    if (product.id == null || product.quantity <= 0) {
-      return;
-    }
+    if (product.id == null || product.quantity <= 0) return;
 
     this.cart.add(product);
   }
