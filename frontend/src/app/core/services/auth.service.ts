@@ -1,7 +1,14 @@
 
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import {
+  Observable,
+  tap,
+  switchMap,
+  map,
+  catchError,
+  throwError
+} from 'rxjs';
 
 import {
   AuthResponse,
@@ -11,37 +18,76 @@ import {
 
 import { API_BASE_URL } from '../config/api.config';
 
+// Response returned by Spring Boot GET /users/me
+export interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
 
   private readonly tokenKey = 'token';
-  private readonly roleKey = 'role';
-  private readonly userIdKey = 'userId';
 
+  // Only the JWT is stored in sessionStorage.
   private readonly tokenState = signal<string | null>(
-    localStorage.getItem(this.tokenKey)
+    sessionStorage.getItem(this.tokenKey)
   );
 
-  private readonly roleState = signal<string | null>(
-    localStorage.getItem(this.roleKey)
-  );
+  // User information is stored only in Angular memory.
+  private readonly userState = signal<UserProfile | null>(null);
 
-  constructor(private readonly http: HttpClient) {}
+  constructor(private readonly http: HttpClient) {
+
+    // Remove authentication data from the old implementation.
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('userId');
+  }
 
   // Login
   login(request: LoginRequest): Observable<AuthResponse> {
+
     return this.http.post<AuthResponse>(
       `${API_BASE_URL}/users/login`,
       request
     ).pipe(
-      tap(response => {
-        this.storeAuth(response);
+      switchMap(response => {
+
+        // Clear any previous session.
+        this.logout();
+
+        const token = response.token ?? response.jwt;
+
+        if (!token) {
+          return throwError(() =>
+            new Error('Login response does not contain a token')
+          );
+        }
+
+        // Store only the JWT.
+        sessionStorage.setItem(this.tokenKey, token);
+        this.tokenState.set(token);
+
+        // Ask the backend to validate the JWT
+        // and return the authenticated user's profile.
+        return this.loadProfile().pipe(
+          map(() => response)
+        );
+      }),
+
+      catchError(error => {
+        this.logout();
+        return throwError(() => error);
       })
     );
   }
 
   // Register
   register(request: RegisterRequest): Observable<string> {
+
     return this.http.post(
       `${API_BASE_URL}/users`,
       request,
@@ -49,74 +95,55 @@ export class AuthService {
     );
   }
 
+  // Retrieve profile from Spring Boot
+  loadProfile(): Observable<UserProfile> {
+
+    return this.http.get<UserProfile>(
+      `${API_BASE_URL}/users/me`
+    ).pipe(
+      tap(profile => {
+        this.userState.set(profile);
+      })
+    );
+  }
+
   // Logout
   logout(): void {
 
-    // Remove authentication details.
-    localStorage.removeItem(this.tokenKey);
-    localStorage.removeItem(this.roleKey);
-    localStorage.removeItem(this.userIdKey);
+    sessionStorage.removeItem(this.tokenKey);
 
-    // Update authentication signals.
     this.tokenState.set(null);
-    this.roleState.set(null);
+    this.userState.set(null);
   }
 
-  // Authentication status
+  // Checks token presence only.
+  // Actual JWT validation happens in Spring Boot.
   hasToken(): boolean {
     return !!this.tokenState();
   }
 
+  // Get JWT for HTTP interceptor
   getToken(): string | null {
     return this.tokenState();
   }
 
-  // Role
+  // Get authenticated user
+  getUser(): UserProfile | null {
+    return this.userState();
+  }
+
+  // Get role from backend-provided profile
   getRole(): string | null {
-    return this.roleState();
+    return this.userState()?.role ?? null;
   }
 
+  // Check ADMIN role for frontend UI
   isAdmin(): boolean {
-    return this.roleState() === 'ADMIN';
+    return this.getRole() === 'ADMIN';
   }
 
-  // Logged-in user ID
+  // Get logged-in user ID
   getUserId(): number | null {
-
-    const value = localStorage.getItem(this.userIdKey);
-
-    if (!value) {
-      return null;
-    }
-
-    const id = Number(value);
-
-    return Number.isFinite(id) ? id : null;
-  }
-
-  // Store authentication response
-  private storeAuth(response: AuthResponse): void {
-
-    const token = response.token ?? response.jwt;
-    const role = response.role ?? response.user?.role;
-
-    const userId =
-      response.userId ??
-      response.id ??
-      response.user?.id;
-
-    if (token) {
-      localStorage.setItem(this.tokenKey, token);
-      this.tokenState.set(token);
-    }
-
-    if (role) {
-      localStorage.setItem(this.roleKey, role);
-      this.roleState.set(role);
-    }
-
-    if (userId !== undefined && userId !== null) {
-      localStorage.setItem(this.userIdKey, String(userId));
-    }
+    return this.userState()?.id ?? null;
   }
 }

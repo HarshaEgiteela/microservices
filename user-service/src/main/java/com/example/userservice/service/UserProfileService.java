@@ -6,6 +6,7 @@ import com.example.userservice.dto.UserProfileResponse;
 import com.example.userservice.entity.User;
 import com.example.userservice.exception.ResourceNotFoundException;
 import com.example.userservice.repository.UserRepository;
+import com.example.userservice.repository.AuthenticationRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -18,6 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserProfileService {
 
     private final UserRepository userRepository;
+
+    // NEW: To retrieve the user's role from the database
+    private final AuthenticationRepository authenticationRepository;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getProfile(Long userId) {
@@ -65,11 +69,23 @@ public class UserProfileService {
                 );
     }
 
+    // UPDATED: Include role in profile response
     private UserProfileResponse toResponse(User user) {
+
+        String role = authenticationRepository
+                .findByUserId(user.getId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Authentication record not found"
+                        )
+                )
+                .getRole();
+
         return new UserProfileResponse(
                 user.getId(),
                 user.getName(),
-                user.getEmail()
+                user.getEmail(),
+                role
         );
     }
 }
