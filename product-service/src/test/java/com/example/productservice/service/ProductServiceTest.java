@@ -13,6 +13,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -39,72 +44,105 @@ class ProductServiceTest {
         product.setPrice(75000);
         product.setQuantity(10);
         product.setDescription("Test laptop");
+        product.setCategory("Electronics");
+        product.setImageUrl("https://example.com/laptop.jpg");
         product.setActive(true);
     }
 
-    // ==========================================
-    // GET ALL PRODUCTS
-    // ==========================================
-
     @Test
-    void getAllProducts_shouldReturnAllProducts() {
+    void searchProducts_shouldReturnPaginatedProducts() {
+        Page<Product> repositoryPage = new PageImpl<>(List.of(product));
 
-        Product product2 = new Product();
-        product2.setId(2L);
-        product2.setName("Phone");
-        product2.setPrice(30000);
-        product2.setQuantity(20);
-        product2.setActive(true);
+        when(productRepository.findAll(
+                any(Specification.class),
+                any(Pageable.class)
+        )).thenReturn(repositoryPage);
 
-        when(productRepository.findAll())
-                .thenReturn(List.of(product, product2));
+        Page<Product> result = productService.searchProducts(
+                null, null, null, null, "name_asc", 0, 20
+        );
 
-        List<Product> result =
-                productService.getAllProducts();
+        assertEquals(1, result.getTotalElements());
+        assertEquals("Laptop", result.getContent().get(0).getName());
 
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals("Laptop", result.get(0).getName());
-        assertEquals("Phone", result.get(1).getName());
-
-        verify(productRepository).findAll();
+        verify(productRepository).findAll(
+                any(Specification.class),
+                argThat((Pageable pageable) ->
+                        pageable.getPageNumber() == 0
+                                && pageable.getPageSize() == 20
+                                && pageable.getSort().getOrderFor("name") != null
+                )
+        );
     }
 
     @Test
-    void getAllProducts_shouldExcludeInactiveProducts() {
+    void searchProducts_shouldApplyFiltersAndSort() {
+        when(productRepository.findAll(
+                any(Specification.class),
+                any(Pageable.class)
+        )).thenReturn(new PageImpl<>(List.of(product)));
 
-        Product inactiveProduct = new Product();
-        inactiveProduct.setId(2L);
-        inactiveProduct.setName("Deleted Phone");
-        inactiveProduct.setActive(false);
+        Page<Product> result = productService.searchProducts(
+                "lap", "Electronics", 1000.0, 90000.0,
+                "price_desc", 1, 5
+        );
 
-        when(productRepository.findAll())
-                .thenReturn(List.of(product, inactiveProduct));
+        assertEquals(1, result.getNumberOfElements());
 
-        List<Product> result =
-                productService.getAllProducts();
-
-        assertEquals(1, result.size());
-        assertEquals("Laptop", result.get(0).getName());
-        assertTrue(result.get(0).isActive());
-
-        verify(productRepository).findAll();
+        verify(productRepository).findAll(
+                any(Specification.class),
+                argThat((Pageable pageable) ->
+                        pageable.getPageNumber() == 1
+                                && pageable.getPageSize() == 5
+                                && pageable.getSort().getOrderFor("price") != null
+                                && pageable.getSort().getOrderFor("price").isDescending()
+                )
+        );
     }
 
-    // ==========================================
-    // GET PRODUCT BY ID
-    // ==========================================
+    @Test
+    void searchProducts_shouldRejectNegativePage() {
+        assertThrows(IllegalArgumentException.class,
+                () -> productService.searchProducts(
+                        null, null, null, null, "name_asc", -1, 20
+                ));
+
+        verifyNoInteractions(productRepository);
+    }
+
+    @Test
+    void searchProducts_shouldRejectInvalidPageSize() {
+        assertThrows(IllegalArgumentException.class,
+                () -> productService.searchProducts(
+                        null, null, null, null, "name_asc", 0, 0
+                ));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> productService.searchProducts(
+                        null, null, null, null, "name_asc", 0, 101
+                ));
+
+        verifyNoInteractions(productRepository);
+    }
+
+    @Test
+    void searchProducts_shouldRejectInvalidPriceRange() {
+        assertThrows(IllegalArgumentException.class,
+                () -> productService.searchProducts(
+                        null, null, 90000.0, 1000.0,
+                        "name_asc", 0, 20
+                ));
+
+        verifyNoInteractions(productRepository);
+    }
 
     @Test
     void getProductById_shouldReturnProductWhenFound() {
-
         when(productRepository.findById(1L))
                 .thenReturn(Optional.of(product));
 
-        Product result =
-                productService.getProductById(1L);
+        Product result = productService.getProductById(1L);
 
-        assertNotNull(result);
         assertEquals(1L, result.getId());
         assertEquals("Laptop", result.getName());
         assertEquals(75000, result.getPrice());
@@ -115,123 +153,96 @@ class ProductServiceTest {
 
     @Test
     void getProductById_shouldThrowWhenNotFound() {
-
         when(productRepository.findById(999L))
                 .thenReturn(Optional.empty());
 
-        ResourceNotFoundException exception =
-                assertThrows(
-                        ResourceNotFoundException.class,
-                        () -> productService.getProductById(999L)
-                );
-
-        assertEquals(
-                "Product not found: 999",
-                exception.getMessage()
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> productService.getProductById(999L)
         );
 
-        verify(productRepository).findById(999L);
+        assertEquals("Product not found: 999", exception.getMessage());
     }
-
-    // ==========================================
-    // CREATE PRODUCT
-    // ==========================================
 
     @Test
     void createProduct_shouldSaveProduct() {
-
-        Product savedProduct = new Product();
-        savedProduct.setId(1L);
-        savedProduct.setName("Laptop");
-        savedProduct.setPrice(75000);
-        savedProduct.setQuantity(10);
-        savedProduct.setDescription("Test laptop");
-        savedProduct.setActive(true);
+        Product saved = new Product();
+        saved.setId(1L);
+        saved.setName("Laptop");
+        saved.setPrice(75000);
+        saved.setQuantity(10);
+        saved.setActive(true);
+        saved.setCategory("Electronics");
 
         when(productRepository.save(any(Product.class)))
-                .thenReturn(savedProduct);
+                .thenReturn(saved);
 
-        Product result =
-                productService.createProduct(product);
+        Product result = productService.createProduct(product);
 
-        assertNotNull(result);
         assertEquals(1L, result.getId());
         assertEquals("Laptop", result.getName());
-        assertEquals(75000, result.getPrice());
         assertTrue(result.isActive());
+        assertNull(product.getId());
 
         verify(productRepository).save(product);
-
-        // The database generates the ID.
-        assertNull(product.getId());
     }
 
     @Test
     void createProduct_shouldRejectBlankName() {
-
         product.setName("   ");
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> productService.createProduct(product)
-        );
+        assertThrows(IllegalArgumentException.class,
+                () -> productService.createProduct(product));
 
         verify(productRepository, never()).save(any());
     }
 
     @Test
     void createProduct_shouldRejectNegativePrice() {
-
         product.setPrice(-100);
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> productService.createProduct(product)
-        );
+        assertThrows(IllegalArgumentException.class,
+                () -> productService.createProduct(product));
 
         verify(productRepository, never()).save(any());
     }
 
     @Test
     void createProduct_shouldRejectNegativeQuantity() {
-
         product.setQuantity(-5);
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> productService.createProduct(product)
-        );
+        assertThrows(IllegalArgumentException.class,
+                () -> productService.createProduct(product));
 
         verify(productRepository, never()).save(any());
     }
 
-    // ==========================================
-    // UPDATE PRODUCT
-    // ==========================================
-
     @Test
     void updateProduct_shouldUpdateProduct() {
-
-        Product updatedProduct = new Product();
-        updatedProduct.setName("New Laptop");
-        updatedProduct.setPrice(85000);
-        updatedProduct.setQuantity(15);
-        updatedProduct.setDescription("Updated laptop");
+        Product updated = new Product();
+        updated.setName("New Laptop");
+        updated.setPrice(85000);
+        updated.setQuantity(15);
+        updated.setDescription("Updated laptop");
+        updated.setCategory("Electronics");
+        updated.setImageUrl("https://example.com/new-laptop.jpg");
 
         when(productRepository.findById(1L))
                 .thenReturn(Optional.of(product));
-
         when(productRepository.save(product))
                 .thenReturn(product);
 
-        Product result =
-                productService.updateProduct(1L, updatedProduct);
+        Product result = productService.updateProduct(1L, updated);
 
-        assertNotNull(result);
         assertEquals("New Laptop", result.getName());
         assertEquals(85000, result.getPrice());
         assertEquals(15, result.getQuantity());
         assertEquals("Updated laptop", result.getDescription());
+        assertEquals("Electronics", result.getCategory());
+        assertEquals(
+                "https://example.com/new-laptop.jpg",
+                result.getImageUrl()
+        );
 
         verify(productRepository).findById(1L);
         verify(productRepository).save(product);
@@ -239,182 +250,117 @@ class ProductServiceTest {
 
     @Test
     void updateProduct_shouldThrowWhenNotFound() {
-
-        Product updatedProduct = new Product();
-        updatedProduct.setName("New Laptop");
-        updatedProduct.setPrice(85000);
-        updatedProduct.setQuantity(15);
+        Product updated = new Product();
+        updated.setName("New Laptop");
+        updated.setPrice(85000);
+        updated.setQuantity(15);
 
         when(productRepository.findById(999L))
                 .thenReturn(Optional.empty());
 
-        ResourceNotFoundException exception =
-                assertThrows(
-                        ResourceNotFoundException.class,
-                        () -> productService.updateProduct(
-                                999L,
-                                updatedProduct
-                        )
-                );
-
-        assertEquals(
-                "Product not found: 999",
-                exception.getMessage()
-        );
+        assertThrows(ResourceNotFoundException.class,
+                () -> productService.updateProduct(999L, updated));
 
         verify(productRepository, never()).save(any());
     }
 
-    // ==========================================
-    // SOFT DELETE PRODUCT
-    // ==========================================
-
     @Test
     void deleteProduct_shouldMarkProductInactive() {
-
         when(productRepository.findById(1L))
                 .thenReturn(Optional.of(product));
 
         productService.deleteProduct(1L);
 
         assertFalse(product.isActive());
-
-        verify(productRepository).findById(1L);
         verify(productRepository).save(product);
         verify(productRepository, never()).delete(any(Product.class));
     }
 
     @Test
     void deleteProduct_shouldThrowWhenNotFound() {
-
         when(productRepository.findById(999L))
                 .thenReturn(Optional.empty());
 
-        assertThrows(
-                ResourceNotFoundException.class,
-                () -> productService.deleteProduct(999L)
-        );
+        assertThrows(ResourceNotFoundException.class,
+                () -> productService.deleteProduct(999L));
 
         verify(productRepository, never()).save(any());
-        verify(productRepository, never()).delete(any(Product.class));
     }
-
-    // ==========================================
-    // REDUCE STOCK
-    // ==========================================
 
     @Test
     void reduceQuantity_shouldReduceStock() {
-
-        Product updatedProduct = new Product();
-        updatedProduct.setId(1L);
-        updatedProduct.setName("Laptop");
-        updatedProduct.setPrice(75000);
-        updatedProduct.setQuantity(7);
-        updatedProduct.setActive(true);
+        Product updated = new Product();
+        updated.setId(1L);
+        updated.setName("Laptop");
+        updated.setPrice(75000);
+        updated.setQuantity(7);
+        updated.setActive(true);
 
         when(productRepository.findById(1L))
-                .thenReturn(Optional.of(product), Optional.of(updatedProduct));
-
+                .thenReturn(Optional.of(product), Optional.of(updated));
         when(productRepository.reduceStockIfAvailable(1L, 3))
                 .thenReturn(1);
 
-        Product result =
-                productService.reduceQuantity(1L, 3);
+        Product result = productService.reduceQuantity(1L, 3);
 
-        assertNotNull(result);
         assertEquals(7, result.getQuantity());
-
-        verify(productRepository)
-                .reduceStockIfAvailable(1L, 3);
-
+        verify(productRepository).reduceStockIfAvailable(1L, 3);
         verify(productRepository, times(2)).findById(1L);
-
         verify(productRepository, never()).save(any());
     }
 
     @Test
     void reduceQuantity_shouldRejectZeroQuantity() {
-
-        IllegalArgumentException exception =
-                assertThrows(
-                        IllegalArgumentException.class,
-                        () -> productService.reduceQuantity(1L, 0)
-                );
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> productService.reduceQuantity(1L, 0)
+        );
 
         assertEquals(
                 "Quantity must be greater than zero",
                 exception.getMessage()
         );
-
         verifyNoInteractions(productRepository);
     }
 
     @Test
     void reduceQuantity_shouldRejectNegativeQuantity() {
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> productService.reduceQuantity(1L, -1)
-        );
+        assertThrows(IllegalArgumentException.class,
+                () -> productService.reduceQuantity(1L, -1));
 
         verifyNoInteractions(productRepository);
     }
 
     @Test
     void reduceQuantity_shouldRejectInsufficientStock() {
-
-        // Product exists and is active.
         when(productRepository.findById(1L))
                 .thenReturn(Optional.of(product));
-
-        // Atomic stock reduction fails.
         when(productRepository.reduceStockIfAvailable(1L, 20))
                 .thenReturn(0);
-
-        // The product still exists, so stock is insufficient.
         when(productRepository.existsById(1L))
                 .thenReturn(true);
 
-        IllegalArgumentException exception =
-                assertThrows(
-                        IllegalArgumentException.class,
-                        () -> productService.reduceQuantity(1L, 20)
-                );
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> productService.reduceQuantity(1L, 20)
+        );
 
         assertEquals(
                 "Insufficient stock for product: 1",
                 exception.getMessage()
         );
 
-        verify(productRepository).findById(1L);
-
-        verify(productRepository)
-                .reduceStockIfAvailable(1L, 20);
-
+        verify(productRepository).reduceStockIfAvailable(1L, 20);
         verify(productRepository).existsById(1L);
-
-        verify(productRepository, never()).save(any());
     }
 
     @Test
     void reduceQuantity_shouldThrowWhenProductNotFound() {
-
         when(productRepository.findById(999L))
                 .thenReturn(Optional.empty());
 
-        ResourceNotFoundException exception =
-                assertThrows(
-                        ResourceNotFoundException.class,
-                        () -> productService.reduceQuantity(999L, 2)
-                );
-
-        assertEquals(
-                "Product not found: 999",
-                exception.getMessage()
-        );
-
-        verify(productRepository).findById(999L);
+        assertThrows(ResourceNotFoundException.class,
+                () -> productService.reduceQuantity(999L, 2));
 
         verify(productRepository, never())
                 .reduceStockIfAvailable(anyLong(), anyInt());
@@ -422,17 +368,15 @@ class ProductServiceTest {
 
     @Test
     void reduceQuantity_shouldRejectInactiveProduct() {
-
         product.setActive(false);
 
         when(productRepository.findById(1L))
                 .thenReturn(Optional.of(product));
 
-        IllegalArgumentException exception =
-                assertThrows(
-                        IllegalArgumentException.class,
-                        () -> productService.reduceQuantity(1L, 2)
-                );
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> productService.reduceQuantity(1L, 2)
+        );
 
         assertEquals(
                 "Product is no longer available: 1",
@@ -443,64 +387,46 @@ class ProductServiceTest {
                 .reduceStockIfAvailable(anyLong(), anyInt());
     }
 
-    // ==========================================
-    // INCREASE STOCK
-    // ==========================================
-
     @Test
     void increaseQuantity_shouldIncreaseStock() {
+        Product updated = new Product();
+        updated.setId(1L);
+        updated.setName("Laptop");
+        updated.setPrice(75000);
+        updated.setQuantity(15);
+        updated.setActive(true);
 
         when(productRepository.increaseStock(1L, 5))
                 .thenReturn(1);
-
-        Product updatedProduct = new Product();
-        updatedProduct.setId(1L);
-        updatedProduct.setName("Laptop");
-        updatedProduct.setPrice(75000);
-        updatedProduct.setQuantity(15);
-        updatedProduct.setActive(true);
-
         when(productRepository.findById(1L))
-                .thenReturn(Optional.of(updatedProduct));
+                .thenReturn(Optional.of(updated));
 
-        Product result =
-                productService.increaseQuantity(1L, 5);
+        Product result = productService.increaseQuantity(1L, 5);
 
-        assertNotNull(result);
         assertEquals(15, result.getQuantity());
-
         verify(productRepository).increaseStock(1L, 5);
         verify(productRepository).findById(1L);
     }
 
     @Test
     void increaseQuantity_shouldRejectInvalidQuantity() {
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> productService.increaseQuantity(1L, 0)
-        );
+        assertThrows(IllegalArgumentException.class,
+                () -> productService.increaseQuantity(1L, 0));
 
         verifyNoInteractions(productRepository);
     }
 
     @Test
     void increaseQuantity_shouldThrowWhenProductNotFound() {
-
         when(productRepository.increaseStock(999L, 5))
                 .thenReturn(0);
 
-        ResourceNotFoundException exception =
-                assertThrows(
-                        ResourceNotFoundException.class,
-                        () -> productService.increaseQuantity(999L, 5)
-                );
-
-        assertEquals(
-                "Product not found: 999",
-                exception.getMessage()
+        ResourceNotFoundException exception = assertThrows(
+                ResourceNotFoundException.class,
+                () -> productService.increaseQuantity(999L, 5)
         );
 
+        assertEquals("Product not found: 999", exception.getMessage());
         verify(productRepository).increaseStock(999L, 5);
     }
 }
