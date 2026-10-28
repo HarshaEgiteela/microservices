@@ -365,7 +365,8 @@ class UserControllerTest {
                 new UserProfileResponse(
                         5L,
                         "Harsha",
-                        "harsha@test.com"
+                        "harsha@test.com",
+                        "CUSTOMER"
                 );
 
         when(profileService.getProfile(5L))
@@ -387,7 +388,9 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.name")
                         .value("Harsha"))
                 .andExpect(jsonPath("$.email")
-                        .value("harsha@test.com"));
+                        .value("harsha@test.com"))
+                .andExpect(jsonPath("$.role")
+                        .value("CUSTOMER"));
 
         verify(profileService).getProfile(5L);
     }
@@ -404,7 +407,8 @@ class UserControllerTest {
                 new UserProfileResponse(
                         5L,
                         "Harsha Updated",
-                        "new@test.com"
+                        "new@test.com",
+                        "CUSTOMER"
                 );
 
         when(profileService.updateProfile(
@@ -437,7 +441,9 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.name")
                         .value("Harsha Updated"))
                 .andExpect(jsonPath("$.email")
-                        .value("new@test.com"));
+                        .value("new@test.com"))
+                .andExpect(jsonPath("$.role")
+                        .value("CUSTOMER"));
 
         verify(profileService).updateProfile(
                 eq(5L),
