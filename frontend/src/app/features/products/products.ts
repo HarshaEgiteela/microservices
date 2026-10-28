@@ -1,10 +1,5 @@
 
-import {
-  Component,
-  inject,
-  signal
-} from '@angular/core';
-
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
@@ -31,33 +26,35 @@ import { Product } from '../../core/models/app.models';
   templateUrl: './products.html'
 })
 export class ProductsComponent {
-
   readonly products = signal<Product[]>([]);
   readonly loading = signal(false);
   readonly error = signal('');
-
   readonly totalElements = signal(0);
   readonly totalPages = signal(0);
   readonly currentPage = signal(0);
-
   readonly pageSize = 12;
 
   readonly cart = inject(CartService);
-
   private readonly productService = inject(ProductService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  // Search and filter inputs
-  search = '';
+  // Search is independent from sidebar filters
+  searchInput = '';
+  appliedSearch = '';
+
+  // Sidebar filter inputs
   category = '';
   minPrice: number | null = null;
   maxPrice: number | null = null;
 
+  private appliedCategory = '';
+  private appliedMinPrice: number | undefined;
+  private appliedMaxPrice: number | undefined;
+
+  // Sorting is independent from search and filters
   sort: NonNullable<ProductFilters['sort']> = 'name_asc';
 
-  // Incrementing this prevents old responses from
-  // replacing newer search results.
   private requestVersion = 0;
 
   readonly categories = [
@@ -73,15 +70,21 @@ export class ProductsComponent {
   ];
 
   constructor() {
-    this.load();
+    this.load(0);
   }
 
-  load(page: number = 0): void {
+  searchProducts(): void {
+    this.appliedSearch = this.searchInput.trim();
+    this.load(0);
+  }
 
-    if (page < 0) {
-      return;
-    }
+  clearSearch(): void {
+    this.searchInput = '';
+    this.appliedSearch = '';
+    this.load(0);
+  }
 
+  applyFilters(): void {
     if (
       this.minPrice != null &&
       (!Number.isFinite(this.minPrice) || this.minPrice < 0)
@@ -103,11 +106,52 @@ export class ProductsComponent {
       this.maxPrice != null &&
       this.minPrice > this.maxPrice
     ) {
-      this.error.set(
-        'Minimum price cannot exceed maximum price.'
-      );
+      this.error.set('Minimum price cannot exceed maximum price.');
       return;
     }
+
+    this.appliedCategory = this.category;
+    this.appliedMinPrice = this.minPrice ?? undefined;
+    this.appliedMaxPrice = this.maxPrice ?? undefined;
+
+    this.load(0);
+  }
+
+  clearFilters(): void {
+    this.category = '';
+    this.minPrice = null;
+    this.maxPrice = null;
+
+    this.appliedCategory = '';
+    this.appliedMinPrice = undefined;
+    this.appliedMaxPrice = undefined;
+
+    this.load(0);
+  }
+
+  changeSort(): void {
+    this.load(0);
+  }
+
+  resetAll(): void {
+    this.searchInput = '';
+    this.appliedSearch = '';
+
+    this.category = '';
+    this.minPrice = null;
+    this.maxPrice = null;
+
+    this.appliedCategory = '';
+    this.appliedMinPrice = undefined;
+    this.appliedMaxPrice = undefined;
+
+    this.sort = 'name_asc';
+
+    this.load(0);
+  }
+
+  load(page: number = 0): void {
+    if (page < 0) return;
 
     const version = ++this.requestVersion;
 
@@ -115,59 +159,38 @@ export class ProductsComponent {
     this.error.set('');
 
     this.productService.getProducts({
-      search: this.search,
-      category: this.category,
-      minPrice: this.minPrice ?? undefined,
-      maxPrice: this.maxPrice ?? undefined,
+      search: this.appliedSearch,
+      category: this.appliedCategory,
+      minPrice: this.appliedMinPrice,
+      maxPrice: this.appliedMaxPrice,
       sort: this.sort,
       page,
       size: this.pageSize
     }).subscribe({
-
       next: response => {
-
-        if (version !== this.requestVersion) {
-          return;
-        }
+        if (version !== this.requestVersion) return;
 
         this.products.set(response.content);
         this.totalElements.set(response.totalElements);
         this.totalPages.set(response.totalPages);
         this.currentPage.set(response.number);
-
         this.loading.set(false);
       },
-
       error: () => {
-
-        if (version !== this.requestVersion) {
-          return;
-        }
+        if (version !== this.requestVersion) return;
 
         this.products.set([]);
-        this.error.set('Unable to load products.');
+        this.totalElements.set(0);
+        this.totalPages.set(0);
+        this.error.set(
+          'Unable to load products. Please try again.'
+        );
         this.loading.set(false);
       }
     });
   }
 
-  applyFilters(): void {
-    this.load(0);
-  }
-
-  resetFilters(): void {
-
-    this.search = '';
-    this.category = '';
-    this.minPrice = null;
-    this.maxPrice = null;
-    this.sort = 'name_asc';
-
-    this.load(0);
-  }
-
   nextPage(): void {
-
     if (
       !this.loading() &&
       this.currentPage() + 1 < this.totalPages()
@@ -177,23 +200,19 @@ export class ProductsComponent {
   }
 
   previousPage(): void {
-
     if (!this.loading() && this.currentPage() > 0) {
       this.load(this.currentPage() - 1);
     }
   }
 
   add(product: Product): void {
-
     if (!this.auth.hasToken()) {
-
       this.router.navigate(['/login'], {
         queryParams: {
           message: 'Please sign in to add items to your cart.',
           returnUrl: '/products'
         }
       });
-
       return;
     }
 
@@ -205,7 +224,6 @@ export class ProductsComponent {
   }
 
   productIcon(name: string): string {
-
     const value = name.toLowerCase();
 
     if (value.includes('phone')) return '📱';
