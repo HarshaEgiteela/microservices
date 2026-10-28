@@ -1,7 +1,7 @@
 
 import { Component, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../core/services/auth.service';
 import {
@@ -15,7 +15,7 @@ import { LoadingComponent } from '../../shared/loading/loading';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [LoadingComponent, DecimalPipe],
+  imports: [LoadingComponent, DecimalPipe, RouterLink],
   templateUrl: './home.html'
 })
 export class HomeComponent {
@@ -23,6 +23,12 @@ export class HomeComponent {
   readonly products = signal<Product[]>([]);
   readonly loading = signal(true);
   readonly error = signal('');
+
+  readonly totalElements = signal(0);
+  readonly totalPages = signal(0);
+  readonly currentPage = signal(0);
+
+  readonly pageSize = 12;
 
   readonly cart = inject(CartService);
   readonly auth = inject(AuthService);
@@ -34,15 +40,29 @@ export class HomeComponent {
     this.loadProducts();
   }
 
-  loadProducts(): void {
+  loadProducts(page: number = 0): void {
+
+    if (page < 0) {
+      return;
+    }
+
     this.loading.set(true);
     this.error.set('');
 
-    this.productService.getAll().subscribe({
-      next: products => {
-        this.products.set(products);
+    this.productService.getProducts({
+      page,
+      size: this.pageSize,
+      sort: 'name_asc'
+    }).subscribe({
+
+      next: response => {
+        this.products.set(response.content);
+        this.totalElements.set(response.totalElements);
+        this.totalPages.set(response.totalPages);
+        this.currentPage.set(response.number);
         this.loading.set(false);
       },
+
       error: () => {
         this.error.set(
           'We could not load products. Please try again.'
@@ -50,6 +70,21 @@ export class HomeComponent {
         this.loading.set(false);
       }
     });
+  }
+
+  nextPage(): void {
+    if (
+      !this.loading() &&
+      this.currentPage() + 1 < this.totalPages()
+    ) {
+      this.loadProducts(this.currentPage() + 1);
+    }
+  }
+
+  previousPage(): void {
+    if (!this.loading() && this.currentPage() > 0) {
+      this.loadProducts(this.currentPage() - 1);
+    }
   }
 
   cartItem(

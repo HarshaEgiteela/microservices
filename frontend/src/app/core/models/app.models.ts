@@ -34,6 +34,10 @@ export interface Product {
   quantity: number;
   description?: string;
   active?: boolean;
+
+  // New product fields
+  category?: string | null;
+  imageUrl?: string | null;
 }
 
 export type OrderStatus =

@@ -7,11 +7,10 @@ import com.example.productservice.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/products")
@@ -20,15 +19,38 @@ public class ProductController {
 
     private final ProductService productService;
 
-    // Public: view all products
+    // ========================================
+    // PUBLIC: SEARCH, FILTER, SORT, PAGINATE
+    // ========================================
+
     @GetMapping
-    public ResponseEntity<List<Product>> getAllProducts() {
+    public ResponseEntity<Page<Product>> getAllProducts(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Double minPrice,
+            @RequestParam(required = false) Double maxPrice,
+            @RequestParam(defaultValue = "name_asc") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+
         return ResponseEntity.ok(
-                productService.getAllProducts()
+                productService.searchProducts(
+                        search,
+                        category,
+                        minPrice,
+                        maxPrice,
+                        sort,
+                        page,
+                        size
+                )
         );
     }
 
-    // Public: view one product
+    // ========================================
+    // PUBLIC: VIEW SINGLE PRODUCT
+    // ========================================
+
     @GetMapping("/{id}")
     public ResponseEntity<Product> getProduct(
             @PathVariable Long id
@@ -38,7 +60,10 @@ public class ProductController {
         );
     }
 
-    // Admin: create product
+    // ========================================
+    // ADMIN: CREATE PRODUCT
+    // ========================================
+
     @PostMapping
     public ResponseEntity<Product> createProduct(
             @Valid @RequestBody Product product
@@ -48,7 +73,10 @@ public class ProductController {
                 .body(productService.createProduct(product));
     }
 
-    // Admin: update product
+    // ========================================
+    // ADMIN: UPDATE PRODUCT
+    // ========================================
+
     @PutMapping("/{id}")
     public ResponseEntity<Product> updateProduct(
             @PathVariable Long id,
@@ -59,16 +87,23 @@ public class ProductController {
         );
     }
 
-    // Admin: delete product
+    // ========================================
+    // ADMIN: SOFT DELETE PRODUCT
+    // ========================================
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProduct(
             @PathVariable Long id
     ) {
         productService.deleteProduct(id);
+
         return ResponseEntity.noContent().build();
     }
 
-    // Used by Order Service during checkout
+    // ========================================
+    // CHECKOUT: REDUCE STOCK
+    // ========================================
+
     @PutMapping("/{id}/reduce-stock")
     public ResponseEntity<Product> reduceStock(
             @PathVariable Long id,
@@ -79,7 +114,10 @@ public class ProductController {
         );
     }
 
-    // Used for stock restoration during cancellation
+    // ========================================
+    // CANCELLATION: RESTORE STOCK
+    // ========================================
+
     @PutMapping("/{id}/increase-stock")
     public ResponseEntity<Product> increaseStock(
             @PathVariable Long id,

@@ -34,23 +34,47 @@ export class AdminComponent {
   readonly orders = signal<Order[]>([]);
 
   readonly loading = signal(true);
+  readonly productsLoading = signal(false);
+
   readonly message = signal('');
   readonly error = signal('');
+  readonly productError = signal('');
+
+  readonly totalProducts = signal(0);
+  readonly totalPages = signal(0);
+  readonly currentPage = signal(0);
+
+  readonly pageSize = 20;
 
   private readonly productService = inject(ProductService);
   private readonly orderService = inject(OrderService);
   private readonly userService = inject(UserService);
 
-  // Add Product form
+  readonly categories = [
+    'Electronics',
+    'Fashion',
+    'Home & Kitchen',
+    'Beauty',
+    'Books',
+    'Sports',
+    'Toys',
+    'Accessories',
+    'Other'
+  ];
+
+  search = '';
+  category = '';
+
   form: ProductForm = this.emptyForm();
 
-  // Edit Product popup
   showEditPopup = false;
   editingId: number | null = null;
-
   editForm: ProductForm = this.emptyForm();
   editError = '';
   saving = false;
+  creating = false;
+
+  private productRequestVersion = 0;
 
   constructor() {
     this.load();
@@ -62,11 +86,14 @@ export class AdminComponent {
       price: null,
       quantity: null,
       description: '',
+      category: '',
+      imageUrl: '',
       active: true
     };
   }
 
   load(): void {
+
     this.loading.set(true);
     this.error.set('');
 
@@ -80,19 +107,8 @@ export class AdminComponent {
       }
     };
 
-    // Load products
-    this.productService.getAll().subscribe({
-      next: data => {
-        this.products.set(data);
-        finish();
-      },
-      error: () => {
-        this.error.set('Unable to load products.');
-        finish();
-      }
-    });
+    this.loadProducts(this.currentPage(), finish);
 
-    // Load orders
     this.orderService.getAll().subscribe({
       next: data => {
         this.orders.set(data);
@@ -104,7 +120,6 @@ export class AdminComponent {
       }
     });
 
-    // Load users
     this.userService.getAll().subscribe({
       next: data => {
         this.users.set(data);
@@ -117,55 +132,169 @@ export class AdminComponent {
     });
   }
 
-  // Reset only Add Product form
+  loadProducts(
+    page: number = 0,
+    onComplete?: () => void
+  ): void {
+
+    const version = ++this.productRequestVersion;
+
+    this.productsLoading.set(true);
+    this.productError.set('');
+
+    this.productService.getProducts({
+      search: this.search,
+      category: this.category,
+      page,
+      size: this.pageSize,
+      sort: 'name_asc'
+    }).subscribe({
+
+      next: response => {
+
+        if (version === this.productRequestVersion) {
+          this.products.set(response.content);
+          this.totalProducts.set(response.totalElements);
+          this.totalPages.set(response.totalPages);
+          this.currentPage.set(response.number);
+          this.productsLoading.set(false);
+        }
+
+        onComplete?.();
+      },
+
+      error: () => {
+
+        if (version === this.productRequestVersion) {
+          this.products.set([]);
+          this.productError.set('Unable to load products.');
+          this.productsLoading.set(false);
+        }
+
+        onComplete?.();
+      }
+    });
+  }
+
+  applyProductFilters(): void {
+    this.loadProducts(0);
+  }
+
+  clearProductFilters(): void {
+    this.search = '';
+    this.category = '';
+    this.loadProducts(0);
+  }
+
+  nextProductPage(): void {
+    if (
+      !this.productsLoading() &&
+      this.currentPage() + 1 < this.totalPages()
+    ) {
+      this.loadProducts(this.currentPage() + 1);
+    }
+  }
+
+  previousProductPage(): void {
+    if (
+      !this.productsLoading() &&
+      this.currentPage() > 0
+    ) {
+      this.loadProducts(this.currentPage() - 1);
+    }
+  }
+
   reset(): void {
     this.form = this.emptyForm();
     this.error.set('');
   }
 
-  // Add Product only
+  private validateForm(value: ProductForm): string {
+
+    if (!value.name?.trim()) {
+      return 'Please enter a product name.';
+    }
+
+    if (
+      value.price == null ||
+      !Number.isFinite(value.price) ||
+      value.price < 0
+    ) {
+      return 'Please enter a valid price.';
+    }
+
+    if (
+      value.quantity == null ||
+      !Number.isInteger(value.quantity) ||
+      value.quantity < 0
+    ) {
+      return 'Please enter a valid whole-number quantity.';
+    }
+
+    if ((value.description ?? '').length > 2000) {
+      return 'Description cannot exceed 2000 characters.';
+    }
+
+    if ((value.category ?? '').length > 100) {
+      return 'Category cannot exceed 100 characters.';
+    }
+
+    const imageUrl = (value.imageUrl ?? '').trim();
+
+    if (imageUrl.length > 2000) {
+      return 'Image URL cannot exceed 2000 characters.';
+    }
+
+    if (imageUrl && !/^https?:\/\/\S+$/i.test(imageUrl)) {
+      return 'Image URL must start with http:// or https://.';
+    }
+
+    return '';
+  }
+
+  private toPayload(value: ProductForm): Product {
+    return {
+      name: value.name.trim(),
+      price: value.price!,
+      quantity: value.quantity!,
+      description: value.description ?? '',
+      category: value.category?.trim() || null,
+      imageUrl: value.imageUrl?.trim() || null,
+      active: true
+    };
+  }
+
   saveProduct(): void {
+
+    if (this.creating) {
+      return;
+    }
+
     this.error.set('');
     this.message.set('');
 
-    if (!this.form.name.trim()) {
-      this.error.set('Please enter a product name.');
+    const validationError = this.validateForm(this.form);
+
+    if (validationError) {
+      this.error.set(validationError);
       return;
     }
 
-    if (
-      this.form.price === null ||
-      !Number.isFinite(this.form.price) ||
-      this.form.price < 0
-    ) {
-      this.error.set('Please enter a valid price.');
-      return;
-    }
+    this.creating = true;
 
-    if (
-      this.form.quantity === null ||
-      !Number.isInteger(this.form.quantity) ||
-      this.form.quantity < 0
-    ) {
-      this.error.set('Please enter a valid whole-number quantity.');
-      return;
-    }
+    this.productService.create(
+      this.toPayload(this.form)
+    ).subscribe({
 
-    const payload: Product = {
-      name: this.form.name.trim(),
-      price: this.form.price,
-      quantity: this.form.quantity,
-      description: this.form.description ?? '',
-      active: true
-    };
-
-    this.productService.create(payload).subscribe({
       next: () => {
+        this.creating = false;
         this.reset();
-        this.load();
+        this.loadProducts(0);
         this.message.set('Product created successfully.');
       },
+
       error: err => {
+        this.creating = false;
         this.error.set(
           typeof err?.error === 'string'
             ? err.error
@@ -175,8 +304,8 @@ export class AdminComponent {
     });
   }
 
-  // Open Edit Product popup
   edit(product: Product): void {
+
     if (product.id == null) {
       this.error.set('Invalid product ID.');
       return;
@@ -189,6 +318,8 @@ export class AdminComponent {
       price: product.price,
       quantity: product.quantity,
       description: product.description ?? '',
+      category: product.category ?? '',
+      imageUrl: product.imageUrl ?? '',
       active: product.active ?? true
     };
 
@@ -197,8 +328,8 @@ export class AdminComponent {
     this.showEditPopup = true;
   }
 
-  // Close Edit Product popup
   closeEditPopup(): void {
+
     if (this.saving) {
       return;
     }
@@ -209,57 +340,37 @@ export class AdminComponent {
     this.editError = '';
   }
 
-  // Update product from popup
   updateProduct(): void {
+
     if (this.editingId === null || this.saving) {
       return;
     }
 
     this.editError = '';
 
-    if (!this.editForm.name.trim()) {
-      this.editError = 'Please enter a product name.';
+    const validationError = this.validateForm(this.editForm);
+
+    if (validationError) {
+      this.editError = validationError;
       return;
     }
-
-    if (
-      this.editForm.price === null ||
-      !Number.isFinite(this.editForm.price) ||
-      this.editForm.price < 0
-    ) {
-      this.editError = 'Please enter a valid price.';
-      return;
-    }
-
-    if (
-      this.editForm.quantity === null ||
-      !Number.isInteger(this.editForm.quantity) ||
-      this.editForm.quantity < 0
-    ) {
-      this.editError = 'Please enter a valid whole-number quantity.';
-      return;
-    }
-
-    const payload: Product = {
-      name: this.editForm.name.trim(),
-      price: this.editForm.price,
-      quantity: this.editForm.quantity,
-      description: this.editForm.description ?? '',
-      active: this.editForm.active ?? true
-    };
 
     this.saving = true;
 
-    this.productService.update(this.editingId, payload).subscribe({
+    this.productService.update(
+      this.editingId,
+      this.toPayload(this.editForm)
+    ).subscribe({
+
       next: () => {
         this.saving = false;
         this.closeEditPopup();
-        this.load();
+        this.loadProducts(this.currentPage());
         this.message.set('Product updated successfully.');
       },
+
       error: err => {
         this.saving = false;
-
         this.editError =
           typeof err?.error === 'string'
             ? err.error
@@ -268,9 +379,11 @@ export class AdminComponent {
     });
   }
 
-  // Delete Product
   deleteProduct(id: number): void {
-    if (!window.confirm('Are you sure you want to delete this product?')) {
+
+    if (!window.confirm(
+      'Are you sure you want to delete this product?'
+    )) {
       return;
     }
 
@@ -278,10 +391,18 @@ export class AdminComponent {
     this.message.set('');
 
     this.productService.delete(id).subscribe({
+
       next: () => {
-        this.load();
+        const targetPage =
+          this.products().length === 1 &&
+          this.currentPage() > 0
+            ? this.currentPage() - 1
+            : this.currentPage();
+
+        this.loadProducts(targetPage);
         this.message.set('Product deleted successfully.');
       },
+
       error: err => {
         this.error.set(
           typeof err?.error === 'string'

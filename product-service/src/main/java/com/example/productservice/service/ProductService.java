@@ -4,15 +4,16 @@ package com.example.productservice.service;
 import com.example.productservice.entity.Product;
 import com.example.productservice.exception.ResourceNotFoundException;
 import com.example.productservice.repository.ProductRepository;
+import com.example.productservice.specification.ProductSpecification;
 
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -21,26 +22,111 @@ public class ProductService {
     private final ProductRepository productRepository;
 
     // ========================================
-    // PUBLIC: GET ALL ACTIVE PRODUCTS
+    // PUBLIC: SEARCH, FILTER, SORT, PAGINATE
     // ========================================
 
-    // First request: fetch from MySQL and cache in Redis.
-    // Later requests: return cached data until eviction or TTL.
-    @Cacheable(value = "activeProducts", key = "'all'")
+    // Fetches only the requested page from MySQL.
+    // Redis is not used for product listing for now.
     @Transactional(readOnly = true)
-    public List<Product> getAllProducts() {
+    public Page<Product> searchProducts(
+            String search,
+            String category,
+            Double minPrice,
+            Double maxPrice,
+            String sort,
+            int page,
+            int size
+    ) {
 
-        return productRepository.findAll()
-                .stream()
-                .filter(Product::isActive)
-                .toList();
+        // Validate pagination
+        if (page < 0) {
+            throw new IllegalArgumentException(
+                    "Page number cannot be negative"
+            );
+        }
+
+        if (size < 1 || size > 100) {
+            throw new IllegalArgumentException(
+                    "Page size must be between 1 and 100"
+            );
+        }
+
+        // Validate price range
+        if (minPrice != null &&
+                (!Double.isFinite(minPrice) || minPrice < 0)) {
+            throw new IllegalArgumentException(
+                    "Minimum price must be a valid non-negative number"
+            );
+        }
+
+        if (maxPrice != null &&
+                (!Double.isFinite(maxPrice) || maxPrice < 0)) {
+            throw new IllegalArgumentException(
+                    "Maximum price must be a valid non-negative number"
+            );
+        }
+
+        if (minPrice != null && maxPrice != null
+                && minPrice > maxPrice) {
+            throw new IllegalArgumentException(
+                    "Minimum price cannot exceed maximum price"
+            );
+        }
+
+        // Sorting options
+        String sortOption = sort == null
+                ? "name_asc"
+                : sort;
+
+        Sort sorting = switch (sortOption) {
+
+            case "price_asc" ->
+                    Sort.by("price").ascending()
+                            .and(Sort.by("id").ascending());
+
+            case "price_desc" ->
+                    Sort.by("price").descending()
+                            .and(Sort.by("id").ascending());
+
+            case "name_desc" ->
+                    Sort.by("name").descending()
+                            .and(Sort.by("id").ascending());
+
+            case "name_asc" ->
+                    Sort.by("name").ascending()
+                            .and(Sort.by("id").ascending());
+
+            default ->
+                    throw new IllegalArgumentException(
+                            "Invalid sort option: " + sortOption
+                    );
+        };
+
+        // Zero-based pagination:
+        // page=0 -> first page
+        // page=1 -> second page
+        PageRequest pageable = PageRequest.of(
+                page,
+                size,
+                sorting
+        );
+
+        return productRepository.findAll(
+                ProductSpecification.filter(
+                        search,
+                        category,
+                        minPrice,
+                        maxPrice
+                ),
+                pageable
+        );
     }
 
     // ========================================
     // GET PRODUCT BY ID
     // ========================================
 
-    // Not cached: stock operations must read from MySQL.
+    // Read directly from MySQL.
     @Transactional(readOnly = true)
     public Product getProductById(Long id) {
 
@@ -56,7 +142,6 @@ public class ProductService {
     // ADMIN: CREATE PRODUCT
     // ========================================
 
-    // Clear cached product list after successful commit.
     @CacheEvict(value = "activeProducts", allEntries = true)
     @Transactional
     public Product createProduct(Product product) {
@@ -84,10 +169,12 @@ public class ProductService {
 
         Product product = getProductById(id);
 
-        product.setName(updatedProduct.getName().trim());
+        product.setName(updatedProduct.getName());
         product.setPrice(updatedProduct.getPrice());
         product.setQuantity(updatedProduct.getQuantity());
         product.setDescription(updatedProduct.getDescription());
+        product.setCategory(updatedProduct.getCategory());
+        product.setImageUrl(updatedProduct.getImageUrl());
 
         return productRepository.save(product);
     }
@@ -108,11 +195,9 @@ public class ProductService {
     }
 
     // ========================================
-    // CHECKOUT: REDUCE STOCK
+    // CHECKOUT: ATOMIC STOCK REDUCTION
     // ========================================
 
-    // Stock is always updated through MySQL.
-    // Redis is used only for product-list caching.
     @CacheEvict(value = "activeProducts", allEntries = true)
     @Transactional
     public Product reduceQuantity(
@@ -153,7 +238,7 @@ public class ProductService {
     }
 
     // ========================================
-    // RESTORE STOCK
+    // CANCELLATION: STOCK RESTORATION
     // ========================================
 
     @CacheEvict(value = "activeProducts", allEntries = true)
@@ -203,7 +288,6 @@ public class ProductService {
 
         if (product.getName() == null
                 || product.getName().isBlank()) {
-
             throw new IllegalArgumentException(
                     "Product name is required"
             );
@@ -211,7 +295,6 @@ public class ProductService {
 
         if (!Double.isFinite(product.getPrice())
                 || product.getPrice() < 0) {
-
             throw new IllegalArgumentException(
                     "Price must be a valid non-negative number"
             );
@@ -224,5 +307,38 @@ public class ProductService {
         }
 
         product.setName(product.getName().trim());
+
+        // Category remains optional until existing
+        // database products have been updated.
+        if (product.getCategory() != null) {
+
+            String category = product.getCategory().trim();
+
+            if (category.length() > 100) {
+                throw new IllegalArgumentException(
+                        "Category cannot exceed 100 characters"
+                );
+            }
+
+            product.setCategory(
+                    category.isEmpty() ? null : category
+            );
+        }
+
+        // Optional product image URL
+        if (product.getImageUrl() != null) {
+
+            String imageUrl = product.getImageUrl().trim();
+
+            if (imageUrl.length() > 2000) {
+                throw new IllegalArgumentException(
+                        "Image URL cannot exceed 2000 characters"
+                );
+            }
+
+            product.setImageUrl(
+                    imageUrl.isEmpty() ? null : imageUrl
+            );
+        }
     }
 }

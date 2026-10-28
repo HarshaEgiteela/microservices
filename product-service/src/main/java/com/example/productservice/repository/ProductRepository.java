@@ -4,12 +4,14 @@ package com.example.productservice.repository;
 import com.example.productservice.entity.Product;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ProductRepository
-        extends JpaRepository<Product, Long> {
+        extends JpaRepository<Product, Long>,
+        JpaSpecificationExecutor<Product> {
 
     // Reduce stock only if the product is active
     // and sufficient stock is available.
@@ -29,8 +31,8 @@ public interface ProductRepository
             @Param("quantity") int quantity
     );
 
-    // Increase stock when an order is cancelled.
-    // Inactive products can also have their stock restored.
+    // Restore stock when an order is cancelled.
+    // Inactive products can also have stock restored.
     @Modifying(
             clearAutomatically = true,
             flushAutomatically = true

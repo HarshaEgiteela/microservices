@@ -34,9 +34,14 @@ public class Product {
     @Column(length = 2000)
     private String description;
 
-    // False means the product is hidden from the shop.
-    // The record remains available for order history
-    // and stock restoration.
     @Column(nullable = false)
     private boolean active = true;
+
+    @Size(max = 100)
+    @Column(length = 100)
+    private String category;
+
+    @Size(max = 2000)
+    @Column(length = 2000)
+    private String imageUrl;
 }
