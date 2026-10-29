@@ -11,7 +11,7 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 
-import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 
 import java.time.Duration;
 
@@ -23,13 +23,16 @@ public class RedisCacheConfig {
             RedisConnectionFactory connectionFactory
     ) {
 
-        // Jackson 3 JSON serializer
-        GenericJacksonJsonRedisSerializer serializer =
-                new GenericJacksonJsonRedisSerializer(
-                        JsonMapper.builder().build()
-                );
+        var validator = BasicPolymorphicTypeValidator.builder()
+                .allowIfSubType("com.example.productservice.")
+                .allowIfSubType("java.util.")
+                .build();
 
-        // Redis cache configuration
+        GenericJacksonJsonRedisSerializer serializer =
+                GenericJacksonJsonRedisSerializer.builder()
+                        .enableDefaultTyping(validator)
+                        .build();
+
         RedisCacheConfiguration config =
                 RedisCacheConfiguration.defaultCacheConfig()
                         .entryTtl(Duration.ofMinutes(5))
@@ -40,7 +43,6 @@ public class RedisCacheConfig {
                         )
                         .disableCachingNullValues();
 
-        // Redis cache manager
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(config)
                 .transactionAware()
