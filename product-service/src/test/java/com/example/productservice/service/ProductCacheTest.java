@@ -40,8 +40,16 @@ class ProductCacheTest {
         }
 
         @Bean
-        ProductService productService(ProductRepository repository) {
-            return new ProductService(repository);
+        ProductPageCacheService productPageCacheService(
+                ProductRepository repository) {
+            return new ProductPageCacheService(repository);
+        }
+
+        @Bean
+        ProductService productService(
+                ProductRepository repository,
+                ProductPageCacheService pageCacheService) {
+            return new ProductService(repository, pageCacheService);
         }
 
         @Bean
@@ -77,14 +85,18 @@ class ProductCacheTest {
         return product;
     }
 
-    @Test
-    void firstPageRequestShouldFetchFromRepository() {
-        Product product = createProduct();
-
+    private void mockProductPage() {
         when(productRepository.findAll(
                 any(Specification.class),
                 any(Pageable.class)
-        )).thenReturn(new PageImpl<>(List.of(product)));
+        )).thenReturn(
+                new PageImpl<>(List.of(createProduct()))
+        );
+    }
+
+    @Test
+    void firstPageRequestShouldFetchFromRepository() {
+        mockProductPage();
 
         Page<Product> result = productService.searchProducts(
                 null, null, null, null, "name_asc", 0, 20
@@ -96,25 +108,36 @@ class ProductCacheTest {
                 any(Specification.class),
                 any(Pageable.class)
         );
+    }
 
-        assertNull(
-                cacheManager.getCache("activeProducts").get("all")
+    @Test
+    void repeatedPageRequestsShouldUseCache() {
+        mockProductPage();
+
+        productService.searchProducts(
+                null, null, null, null, "name_asc", 0, 20
+        );
+
+        productService.searchProducts(
+                null, null, null, null, "name_asc", 0, 20
+        );
+
+        verify(productRepository, times(1)).findAll(
+                any(Specification.class),
+                any(Pageable.class)
         );
     }
 
     @Test
-    void repeatedPageRequestsShouldQueryRepositoryEachTime() {
-        when(productRepository.findAll(
-                any(Specification.class),
-                any(Pageable.class)
-        )).thenReturn(new PageImpl<>(List.of(createProduct())));
+    void differentPagesShouldHaveDifferentCacheEntries() {
+        mockProductPage();
 
         productService.searchProducts(
                 null, null, null, null, "name_asc", 0, 20
         );
 
         productService.searchProducts(
-                null, null, null, null, "name_asc", 0, 20
+                null, null, null, null, "name_asc", 1, 20
         );
 
         verify(productRepository, times(2)).findAll(
@@ -124,12 +147,12 @@ class ProductCacheTest {
     }
 
     @Test
-    void updatingProductShouldEvictExistingCacheEntry() {
-        Cache cache = cacheManager.getCache("activeProducts");
-        assertNotNull(cache);
+    void updatingProductShouldEvictCache() {
+        mockProductPage();
 
-        cache.put("all", List.of(createProduct()));
-        assertNotNull(cache.get("all"));
+        productService.searchProducts(
+                null, null, null, null, "name_asc", 0, 20
+        );
 
         Product existing = createProduct();
 
@@ -137,35 +160,54 @@ class ProductCacheTest {
                 .thenReturn(Optional.of(existing));
 
         when(productRepository.save(any(Product.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(invocation ->
+                        invocation.getArgument(0)
+                );
 
         Product updated = createProduct();
         updated.setName("Updated Laptop");
 
         productService.updateProduct(1L, updated);
 
-        assertNull(cache.get("all"));
         assertEquals("Updated Laptop", existing.getName());
+
+        productService.searchProducts(
+                null, null, null, null, "name_asc", 0, 20
+        );
+
+        verify(productRepository, times(2)).findAll(
+                any(Specification.class),
+                any(Pageable.class)
+        );
 
         verify(productRepository).save(existing);
     }
 
     @Test
-    void creatingProductShouldEvictExistingCacheEntry() {
-        Cache cache = cacheManager.getCache("activeProducts");
-        assertNotNull(cache);
+    void creatingProductShouldEvictCache() {
+        mockProductPage();
 
-        cache.put("all", List.of(createProduct()));
+        productService.searchProducts(
+                null, null, null, null, "name_asc", 0, 20
+        );
 
         Product newProduct = createProduct();
         newProduct.setId(null);
 
         when(productRepository.save(any(Product.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(invocation ->
+                        invocation.getArgument(0)
+                );
 
         productService.createProduct(newProduct);
 
-        assertNull(cache.get("all"));
-        verify(productRepository).save(any(Product.class));
+        productService.searchProducts(
+                null, null, null, null, "name_asc", 0, 20
+        );
+
+        verify(productRepository, times(2)).findAll(
+                any(Specification.class),
+                any(Pageable.class)
+        );
     }
 }

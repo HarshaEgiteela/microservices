@@ -51,12 +51,14 @@ export class CartService {
     )
   );
 
-  readonly total = computed(() =>
-    this.items().reduce(
-      (sum, item) => sum + item.subtotal,
+  readonly total = computed(() => {
+    const totalPaise = this.items().reduce(
+      (sum, item) => sum + Math.round(item.subtotal * 100),
       0
-    )
-  );
+    );
+
+    return totalPaise / 100;
+  });
 
   readonly loading = signal(false);
   readonly error = signal('');

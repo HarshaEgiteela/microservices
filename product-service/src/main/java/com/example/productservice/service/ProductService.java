@@ -9,8 +9,10 @@ import com.example.productservice.specification.ProductSpecification;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,13 +22,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final ProductPageCacheService productPageCacheService;
 
     // ========================================
     // PUBLIC: SEARCH, FILTER, SORT, PAGINATE
     // ========================================
 
-    // Fetches only the requested page from MySQL.
-    // Redis is not used for product listing for now.
+    // Search and pagination use MySQL on cache misses; Redis caches a DTO.
     @Transactional(readOnly = true)
     public Page<Product> searchProducts(
             String search,
@@ -111,15 +113,10 @@ public class ProductService {
                 sorting
         );
 
-        return productRepository.findAll(
-                ProductSpecification.filter(
-                        search,
-                        category,
-                        minPrice,
-                        maxPrice
-                ),
-                pageable
+        CachedProductPage cached = productPageCacheService.getPage(
+                search, category, minPrice, maxPrice, sortOption, page, size
         );
+        return new PageImpl<>(cached.content(), pageable, cached.totalElements());
     }
 
     // ========================================
