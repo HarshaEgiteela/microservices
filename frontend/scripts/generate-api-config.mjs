@@ -1,4 +1,5 @@
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 const apiUrl =
   process.env.API_BASE_URL ||
@@ -14,9 +15,17 @@ if (!['http:', 'https:'].includes(url.protocol)) {
   throw new Error('Invalid API_BASE_URL protocol');
 }
 
+const outputPath = 'src/app/core/config/api.config.ts';
+
+// Create the directory if it doesn't exist
+mkdirSync(dirname(outputPath), { recursive: true });
+
+// Generate the API configuration
 writeFileSync(
-  'src/app/core/config/api.config.ts',
-  `export const API_BASE_URL = ${JSON.stringify(apiUrl.replace(/\/+$/, ''))};\n`
+  outputPath,
+  `export const API_BASE_URL = ${JSON.stringify(
+    apiUrl.replace(/\/+$/, '')
+  )};\n`
 );
 
 console.log('API configuration generated successfully');
